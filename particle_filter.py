@@ -93,7 +93,7 @@ if __name__ == '__main__':
 	action_logs, index_returns, portfolio_returns = particle_filter_agent.learn(env)
 
 	action_logs = np.vstack(action_logs)
-	gross_levergage = action_logs.sum(1)
+	gross_levergage = np.abs(action_logs).sum(1)
 
 	plt.plot(gross_levergage)
 	plt.title('Replication Portfolio gross leverage')
