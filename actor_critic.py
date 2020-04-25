@@ -19,7 +19,7 @@ import glob
 
 class ValueEstimator(nn.Module):
 
-    def __init__(self,n_inputs, n_hidden = 128,lr = 0.001):
+    def __init__(self,n_inputs, n_hidden = 128,lr = 0.00001):
         
         super(ValueEstimator,self).__init__()
         
@@ -27,8 +27,8 @@ class ValueEstimator(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(n_inputs,n_hidden),
             nn.ReLU(),
-            nn.Linear(n_hidden,n_hidden),
-            nn.ReLU(),
+            # nn.Linear(n_hidden,n_hidden),
+            # nn.ReLU(),
             nn.Linear(n_hidden,1)
         )
        
@@ -58,8 +58,19 @@ class ValueEstimator(nn.Module):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        # print('loss value estimator: '+str(loss))
 
+        return float(loss.detach().numpy())
 
+class Exp(nn.Module):
+
+    def __init__(self):
+        super(Exp, self).__init__()
+
+    def forward(self, x):
+        out = torch.exp(x)
+        out = torch.clamp(out, min=0.0001)
+        return out
 
 class PolicyNN(nn.Module):
     def __init__(self,n_inputs, n_outputs, n_hidden = 128):
@@ -72,14 +83,14 @@ class PolicyNN(nn.Module):
             #nn.Dropout(0.6),
             nn.ReLU(),
 
-            nn.Linear(n_hidden,n_hidden),
-            #nn.Dropout(0.6),
-            nn.ReLU()
+            # nn.Linear(n_hidden,n_hidden),
+            # #nn.Dropout(0.6),
+            # nn.ReLU()
         )
 
         self.alpha = nn.Sequential(
             nn.Linear(n_hidden, n_outputs),
-            nn.ReLU()
+            Exp()
         )
 
     def forward(self,state):
@@ -87,12 +98,12 @@ class PolicyNN(nn.Module):
         Compute the probability for each action corresponding to state s
         """
         l1_output = self.l1(state)
-        return self.alpha(l1_output)
+        return self.alpha(l1_output) 
 
 
 
 class PolicyEstimator(nn.Module):
-    def __init__(self, policy_nn,lr = 0.001):
+    def __init__(self, policy_nn,lr = 0.0001):
         super(PolicyEstimator,self).__init__()
 
         self.policy_nn = policy_nn
@@ -114,7 +125,7 @@ class PolicyEstimator(nn.Module):
         """
         Update the weights of the network based on 
             advantages : advantage for each step in the episode
-            log_probs  : log of probability of each action
+            log_probs  : log of probability 
         """
 
         policy_gradients = []
@@ -129,6 +140,9 @@ class PolicyEstimator(nn.Module):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step() 
+        # print('loss policy estimator: '+ str(loss))
+
+        return float(loss.detach().numpy())
 
     def sample_action(self, dirichlet_dist):
         return dirichlet_dist.sample()
@@ -136,22 +150,28 @@ class PolicyEstimator(nn.Module):
 
     def select_action(self,state):
         alpha = self.predict(state)
+        # print(alpha)
 
         dirichlet_dist = torch.distributions.dirichlet.Dirichlet(alpha)
 
         action = self.sample_action(dirichlet_dist)
-        
+
         log_prob = dirichlet_dist.log_prob(action)
+        # print(log_prob)
 
         return action, log_prob
 
 
 
+
+
 class ActorCritic:
-    def __init__(self,n_episodes, gamma):
+    def __init__(self,n_episodes, gamma, lr_valf, lr_pol):
 
         self.n_episodes = n_episodes
         self.gamma = gamma
+        self.lr_valf = lr_valf
+        self.lr_pol = lr_pol
 
     def learn(self, env):
         # stats for the episode
@@ -159,11 +179,15 @@ class ActorCritic:
         episodic_length = []
 
         # Define value function approximator
-        valf_est = ValueEstimator(env.n_states) 
+        valf_est = ValueEstimator(env.n_states, lr=self.lr_valf) 
 
         # Define policy estimator
         policy_nn = PolicyNN(n_inputs=env.n_states, n_outputs=env.n_assets)
-        policy_est = PolicyEstimator(policy_nn) 
+        policy_est = PolicyEstimator(policy_nn, lr=self.lr_pol) 
+        loss_valf = []
+        loss_pol = []
+        best_loss_valf = 10000000
+        best_loss_pol = 10000000
 
         for eps in tqdm(range(self.n_episodes)):
           
@@ -177,12 +201,14 @@ class ActorCritic:
             portfolio_returns = []
             prev_action = 0
 
-            i = 0
+
+            # i = 0
             terminal = False
             while not terminal:
             
                 # Choose action based on the state and current parameter to generate a full episode
                 action, log_prob = policy_est.select_action(state)
+                delta = action - prev_action
                 # print(action)
                 action_logs.append(action.numpy())
                 log_probs.append(log_prob)
@@ -190,7 +216,7 @@ class ActorCritic:
                 # print(cost)
 
                 # Take the action and observe reward and next state
-                next_state, reward, terminal = env.step(action.numpy())
+                next_state, reward, terminal = env.step(action.numpy(), delta.numpy())
                 next_state = None if terminal else next_state
                 prev_action = action
 
@@ -207,7 +233,7 @@ class ActorCritic:
                 # storing the episode in buffer 
                 eps_buffer.append(Transition(state, action, reward, next_state))
 
-                i+=1
+                # i+=1
 
                 if not terminal:
                     state = next_state
@@ -227,8 +253,8 @@ class ActorCritic:
                     for reward,next_state in zip(rewards,next_states):
                         if next_state is not None:
                             R = torch.tensor(reward) + self.gamma * valf_est.predict(next_state)
-                    else:
-                        R = torch.tensor(reward)
+                        else:
+                            R = torch.tensor(reward)
 
                     Gt.append(R)
 
@@ -243,46 +269,138 @@ class ActorCritic:
                     advantages = returns - baseline_values
 
                     # Update the function approximators
-                    valf_est.update(states,returns)   
-                    policy_est.update(advantages,log_probs)
+                    loss_valf.append(valf_est.update(states,returns))
+                    loss_pol.append(policy_est.update(advantages,log_probs))
 
-        action_logs = np.vstack(action_logs)
+                    if len(loss_valf) > 20: 
+                        current_mean_valf = np.array(loss_valf).mean()
+                        current_mean_pol = np.array(loss_pol).mean()
+                        print('rolling mean value loss: '+str(current_mean_valf/10))
+                        print('rolling mean policy loss: '+str(current_mean_pol/1000))
+                        loss_valf.pop(0)
+                        loss_pol.pop(0)
 
-        return action_logs, env.index_returns, portfolio_returns
+                        if current_mean_valf < best_loss_valf:
+                            torch.save(valf_est.state_dict(), 'models/best_valf_est.pt')
+                            best_loss_valf = current_mean_valf
+
+                        if current_mean_pol < best_loss_pol: 
+                            last_best = eps
+                            torch.save(policy_est.state_dict(), 'models/best_pol_est.pt')
+                            best_loss_pol = current_mean_pol
+
+                        if last_best - eps > 20:
+                            break
 
 
+
+    def predict(self, env, pred_id=None):
+
+        # reset env
+        state = env.reset()
+
+        # instantiate variables
+        action_logs = []
+        portfolio_returns = []
+        prev_action = 0
+        terminal = False
+        T = 0
+
+        # load best models 
+
+        # Define value function approximator
+        valf_est = ValueEstimator(env.n_states) 
+        valf_est.load_state_dict(torch.load('models/best_valf_est.pt'))
+
+        # Define policy estimator
+        policy_nn = PolicyNN(n_inputs=env.n_states, n_outputs=env.n_assets)
+        policy_est = PolicyEstimator(policy_nn) 
+        policy_est.load_state_dict(torch.load('models/best_pol_est.pt'))
+
+
+        while not terminal:
+        
+            action,_ = policy_est.select_action(state)
+            delta = action - prev_action
+
+            action_logs.append(action.numpy())
+
+            # Take the action and observe reward and next state
+            next_state, reward, terminal = env.step(action.numpy(), delta.numpy())
+            next_state = None if terminal else next_state
+            prev_action = action
+
+            portfolio = np.dot(action.numpy(), env.assets.reshape((env.n_assets,1)))
+            portfolio_returns.append(portfolio)
+
+            # update the total length for this episode
+            T += 1
+
+            state = next_state
+              
+
+        action_logs = pd.DataFrame(np.vstack(action_logs)[:,:2], index=env.dates)
+
+        plt.plot(action_logs)
+        plt.savefig('figs/action_logs'+str(pred_id)+'.png')
+        plt.close()
+
+
+        returns_logs = pd.DataFrame({'index': np.array(env.index_returns).flatten(), 
+                                     'replicator': np.array(portfolio_returns).flatten()},
+                                      index=env.dates)
+        returns_logs.plot(marker='.')
+        plt.savefig('figs/returns'+str(pred_id)+'.png')
+        plt.close()
+
+
+        # unit values
+        index_returns = np.array(env.index_returns).flatten()
+        portfolio_returns = np.array(portfolio_returns).flatten()
+        index_value = np.cumprod(1 + index_returns)
+        portfolio_value = np.cumprod(1 + portfolio_returns)
+
+        values_logs = pd.DataFrame({'index': index_value, 
+                                     'replicator': portfolio_value},
+                                      index=env.dates)
+        
+        values_logs.plot(marker='.')
+        plt.legend()
+        plt.savefig('figs/values'+str(pred_id)+'.png')
+        plt.close()
+
+
+        tracking_errors = (returns_logs['index'] - returns_logs['replicator'])**2
+
+        return tracking_errors.mean()
 
 
 
 if __name__ == '__main__':
 
 
-    GAMMA = 0.9
+    GAMMA = 0.99
     N_EPISODES = 1000
-
-    # instantiate index environment
-    env = Env()
+    LR_POL = 0.0001
+    LR_VALF = 0.0001
+    
     Transition = namedtuple('Transition',('state','action','reward','next_state'))
 
-    actor_critic_agent = ActorCritic(N_EPISODES, GAMMA)
-    action_logs, index_returns, portfolio_returns = actor_critic_agent.learn(env)
+    # train
+    # env = Env(context='train')
+    # actor_critic_agent = ActorCritic(N_EPISODES, GAMMA, LR_VALF, LR_POL)
+    # actor_critic_agent.learn(env)
 
 
-    plt.close()
-    plt.plot(np.array(index_returns).flatten())
-    plt.plot(np.array(portfolio_returns).flatten())
-    plt.show()
+    # test
+    env = Env(context='test')
+    actor_critic_agent = ActorCritic(N_EPISODES, GAMMA, LR_VALF, LR_POL)
+
+    TE = []
+    for i in range(10):
+        TE.append(actor_critic_agent.predict(env, pred_id=i))
+
+    TE = np.array(TE).mean()
+    print('AVERAGE TE: '+str(TE))
 
 
-    # unit values
-    index_returns = np.array(index_returns).flatten()
-    portfolio_returns = np.array(portfolio_returns).flatten()
-    index_value = np.cumprod(1 + index_returns)
-    portfolio_value = np.cumprod(1 + portfolio_returns)
-
-
-    plt.close()
-    plt.plot(index_value, label='index')
-    plt.plot(portfolio_value, label='portfolio')
-    plt.legend()
-    plt.show()

@@ -5,10 +5,9 @@ from numpy.random import random
 from index_environment import *
 
 class ParticleFilter:
-	def __init__(self, n_particles, n_assets, max_gross_levergage, vol, likeli_scale):
+	def __init__(self, n_particles, n_assets, vol, likeli_scale):
 		self.n_particles = n_particles
 		self.n_assets = n_assets
-		self.max_gross_levergage = max_gross_levergage
 		self.vol = vol
 		self.likeli_scale = likeli_scale
 
@@ -75,17 +74,15 @@ class ParticleFilter:
 if __name__ == '__main__':
 
 	N_PARTICLES = 1000000 # the more the merrier, but it gets slow
-	MAX_GROSS_LEVERGAE = 2.0 # currently, Im not putting any restrictions on this
 	VOL = 0.1 # standard deviation for the epsilon 
 	LIKELI_SCALE = 0.005 # the smaller, the better it will track the index
 
 	# instantiate index environment
-	env = Env()
+	env = Env(context='test')
 
 	particle_filter_agent = ParticleFilter(
 								n_particles=N_PARTICLES, 
 								n_assets=env.n_assets, 
-								max_gross_levergage=MAX_GROSS_LEVERGAE, 
 								vol=VOL, 
 								likeli_scale = LIKELI_SCALE
 								)
