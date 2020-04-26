@@ -1,5 +1,5 @@
 import numpy as np
-#from tqdm import tqdm
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 import torch
@@ -8,7 +8,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-from sim_environment import SimEnv
+from environments.sim_environment import SimEnv
 from utils.utils import init_weights
 from utils.utils import get_device
 
@@ -180,7 +180,8 @@ if __name__ == '__main__':
     rep_runs = []
     index_runs = []
 
-    for experiment in range(n_seeds):
+    for experiment in tqdm(range(n_seeds)):
+        #print('seed: ', experiment)
         rep, index = main(experiment, N_ASSETS, S0, MUS, SIGMAS, T, EPS_PARAM, hyperparams)
         rep_runs.append(np.cumprod(np.array(rep) + 1))
         index_runs.append(np.cumprod(np.array(index) + 1))

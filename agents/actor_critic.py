@@ -1,20 +1,14 @@
 # Necassary import statments
-from index_environment import *
+from environments.index_environment import *
 import numpy as np
 
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-import torch.nn.functional as F
 
-
-import matplotlib
 import matplotlib.pyplot as plt
-import seaborn as sns
 from collections import namedtuple
 from tqdm.auto import tqdm
-import glob
-
 
 
 class ValueEstimator(nn.Module):
