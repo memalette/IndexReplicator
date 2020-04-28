@@ -16,7 +16,8 @@ class Base(metaclass=ABCMeta):
 
     @abstractmethod
     def predict(self):
-        """method that loads best model params and plots action
+        """method that loads best model params and plots action,
         returns and values figures
         """
         pass
+

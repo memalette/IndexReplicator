@@ -1,6 +1,4 @@
 # Necassary import statments
-from environments.index_environment import *
-from agents.base import Base
 import numpy as np
 
 import torch
@@ -10,6 +8,10 @@ from torch.autograd import Variable
 import matplotlib.pyplot as plt
 from collections import namedtuple
 from tqdm.auto import tqdm
+
+from agents.base import Base
+from environments.index_environment import *
+from utils.utils import Exp
 
 
 class ValueEstimator(nn.Module):
@@ -55,17 +57,6 @@ class ValueEstimator(nn.Module):
         # print('loss value estimator: '+str(loss))
 
         return float(loss.detach().numpy())
-
-
-class Exp(nn.Module):
-
-    def __init__(self):
-        super(Exp, self).__init__()
-
-    def forward(self, x):
-        out = torch.exp(x)
-        out = torch.clamp(out, min=0.0001)
-        return out
 
 
 class PolicyNN(nn.Module):

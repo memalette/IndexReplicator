@@ -1,4 +1,5 @@
 import numpy as np
+import pdb
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -9,7 +10,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 from environments.index_environment import Env
-from utils.utils import init_weights, get_device
+from utils.utils import init_weights, get_device, Exp
 from agents.base import Base
 
 
@@ -23,6 +24,7 @@ class PPO(nn.Module, Base):
         self.fc1 = nn.Linear(num_states, 256)
         self.fc_pi = nn.Linear(256, num_assets)
         self.fc_v = nn.Linear(256, 1)
+        self.exp = Exp()
 
         self.apply(init_weights)
 
@@ -31,13 +33,19 @@ class PPO(nn.Module, Base):
 
     def pi(self, x):
 
-        mu = F.relu(self.fc1(x))
-        mu = self.fc_pi(mu)
+        x = F.relu(self.fc1(x))
+        x = self.fc_pi(x)
+        x = self.exp(x)
 
-        std = self.log_std.exp().expand_as(mu)
-        dist = Normal(mu, std)
+        return x
 
-        return dist
+        #mu = F.relu(self.fc1(x))
+        #mu = self.fc_pi(mu)
+
+        #std = self.log_std.exp().expand_as(mu)
+        #dist = Normal(mu, std)
+
+        #return dist
 
     def v(self, x):
 
@@ -59,6 +67,13 @@ class PPO(nn.Module, Base):
                 constraint_respected = True
 
         return action, a
+
+    def select_action_dir(self, alpha):
+
+        dist = torch.distributions.dirichlet.Dirichlet(alpha)
+        action = dist.sample()
+
+        return action, dist
 
     def make_batch(self):
         s_lst, a_lst, r_lst, next_s_lst, log_prob_lst, done_lst = \
@@ -104,10 +119,15 @@ class PPO(nn.Module, Base):
             advantage_lst.reverse()
             advantage = torch.tensor(advantage_lst, dtype=torch.float).to(self.device)
 
-            new_dist = self.pi(s.float().to(self.device))
+            #new_dist = self.pi(s.float().to(self.device))
+            #_, a = self.select_action(new_dist)
+            #log_prob_new = new_dist.log_prob(a).sum()
+
+            new_alpha = self.pi(s.float().to(self.device))
+            a, new_dist = self.select_action_dir(new_alpha)
             entropy = new_dist.entropy().mean()
-            _, a = self.select_action(new_dist)
-            log_prob_new = new_dist.log_prob(a).sum()
+            log_prob_new = new_dist.log_prob(a)
+
             ratio = torch.exp(log_prob_new - log_prob.to(self.device))
 
             surr1 = (ratio * advantage)
@@ -121,7 +141,7 @@ class PPO(nn.Module, Base):
             loss.backward()
             self.optimizer.step()
 
-        return -loss
+        return loss
 
     def learn(self, env):
 
@@ -143,17 +163,26 @@ class PPO(nn.Module, Base):
             loss_ep = []
             while not done:
                 for t in range(self.hyperparams['T_horizon']):
-                    dist = self.pi(torch.from_numpy(state).float().to(device))
+                    #dist = self.pi(torch.from_numpy(state).float().to(device))
+                    alpha = self.pi(torch.from_numpy(state).float().to(device))
 
-                    next_action, a = self.select_action(dist)
+                    #next_action, a = self.select_action(dist)
+                    next_action, dist = self.select_action_dir(alpha)
                     delta = next_action - action
 
                     next_state, reward, done = env.step(next_action.detach().cpu().numpy(), delta.cpu().numpy())
 
-                    self.append_data((torch.from_numpy(state).float(), a,
+                    #self.append_data((torch.from_numpy(state).float(), a,
+                    #                   torch.from_numpy(reward),
+                    #                   torch.from_numpy(next_state),
+                    #                   dist.log_prob(a).sum(),
+                    #                   done))
+
+                    self.append_data((torch.from_numpy(state).float(),
+                                       next_action,
                                        torch.from_numpy(reward),
                                        torch.from_numpy(next_state),
-                                       dist.log_prob(a).sum(),
+                                       dist.log_prob(next_action),
                                        done))
 
                     state = next_state
@@ -191,9 +220,11 @@ class PPO(nn.Module, Base):
         self.load_state_dict(torch.load('../models/ppo/best_ppo.pt'))
 
         while not done:
-            dist = self.pi(torch.from_numpy(state).float().to(device))
+            #dist = self.pi(torch.from_numpy(state).float().to(device))
+            alpha = self.pi(torch.from_numpy(state).float().to(device))
 
-            next_action, _ = self.select_action(dist)
+            #next_action, _ = self.select_action(dist)
+            next_action, dist = self.select_action_dir(alpha)
             delta = next_action - action
 
             action_logs.append(next_action.detach().cpu().numpy())
@@ -259,7 +290,7 @@ if __name__ == '__main__':
                    'eps_clip': 0.2,
                    'K_epoch': 3,
                    'T_horizon': 20,
-                   'n_episode': 200,
+                   'n_episode': 500,
                    'device': device}
 
     ##### TRAINING ####
