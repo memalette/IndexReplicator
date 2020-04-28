@@ -1,8 +1,6 @@
-import numpy as np
-import math as math
 from scipy.stats import *
 from numpy.random import random
-from index_environment import *
+from environments.index_environment import *
 
 class ParticleFilter:
 	def __init__(self, n_particles, n_assets, vol, likeli_scale):
