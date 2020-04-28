@@ -1,5 +1,6 @@
 # Necassary import statments
 from environments.index_environment import *
+from agents.base import Base
 import numpy as np
 
 import torch
@@ -154,7 +155,7 @@ class PolicyEstimator(nn.Module):
         return action, log_prob
 
 
-class ActorCritic:
+class ActorCritic(Base):
     def __init__(self,n_episodes, gamma, lr_valf, lr_pol):
 
         self.n_episodes = n_episodes

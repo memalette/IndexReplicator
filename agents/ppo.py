@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-#from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 import torch
@@ -10,11 +9,11 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 from environments.index_environment import Env
-from utils.utils import init_weights
-from utils.utils import get_device
+from utils.utils import init_weights, get_device
+from agents.base import Base
 
 
-class PPO(nn.Module):
+class PPO(nn.Module, Base):
     def __init__(self, num_states, num_assets, hyperparams, std=0):
         super(PPO, self).__init__()
         self.data = []
@@ -219,7 +218,7 @@ class PPO(nn.Module):
 
         returns_logs = pd.DataFrame({'index': np.array(env.index_returns).flatten(),
                                      'replicator': np.array(portfolio_returns).flatten()},
-                                    index=env.dates)
+                                      index=env.dates)
         returns_logs.plot(marker='.')
         plt.savefig('../figs/returns' + str(pred_id) + '.png')
         plt.close()
