@@ -13,27 +13,26 @@ from tqdm.auto import tqdm
 
 class ValueEstimator(nn.Module):
 
-    def __init__(self,n_inputs, n_hidden = 128,lr = 0.00001):
+    def __init__(self, n_inputs, n_hidden=128, lr=0.00001):
         
-        super(ValueEstimator,self).__init__()
+        super(ValueEstimator, self).__init__()
         
         # Model definition
         self.model = nn.Sequential(
-            nn.Linear(n_inputs,n_hidden),
+            nn.Linear(n_inputs, n_hidden),
             nn.ReLU(),
             # nn.Linear(n_hidden,n_hidden),
             # nn.ReLU(),
-            nn.Linear(n_hidden,1)
+            nn.Linear(n_hidden, 1)
         )
        
         # Model optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(),lr)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr)
 
         # Loss criterion
         self.criterion = torch.nn.MSELoss()
 
-
-    def predict(self,state):
+    def predict(self, state):
         """
         Compute the probability for each action corresponding to state s
         """
@@ -41,20 +40,21 @@ class ValueEstimator(nn.Module):
         with torch.no_grad():
             return self.model(state)
 
-    def update(self,states,returns):
+    def update(self, states, returns):
         """
         Update the weights of the network based on 
             states     : input states for the value estimator
             returns    : actual monte-carlo return for the states
         """
         pred_returns = self.model(states)
-        loss = self.criterion(pred_returns,Variable(returns))
+        loss = self.criterion(pred_returns, Variable(returns))
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
         # print('loss value estimator: '+str(loss))
 
         return float(loss.detach().numpy())
+
 
 class Exp(nn.Module):
 
@@ -66,14 +66,15 @@ class Exp(nn.Module):
         out = torch.clamp(out, min=0.0001)
         return out
 
+
 class PolicyNN(nn.Module):
-    def __init__(self,n_inputs, n_outputs, n_hidden = 128):
-        super(PolicyNN,self).__init__()
+    def __init__(self, n_inputs, n_outputs, n_hidden=128):
+        super(PolicyNN, self).__init__()
 
         # Model definition
         # first layer
         self.l1 = nn.Sequential(
-            nn.Linear(n_inputs,n_hidden),
+            nn.Linear(n_inputs, n_hidden),
             #nn.Dropout(0.6),
             nn.ReLU(),
 
@@ -87,7 +88,7 @@ class PolicyNN(nn.Module):
             Exp()
         )
 
-    def forward(self,state):
+    def forward(self, state):
         """
         Compute the probability for each action corresponding to state s
         """
@@ -95,18 +96,16 @@ class PolicyNN(nn.Module):
         return self.alpha(l1_output) 
 
 
-
 class PolicyEstimator(nn.Module):
-    def __init__(self, policy_nn,lr = 0.0001):
-        super(PolicyEstimator,self).__init__()
+    def __init__(self, policy_nn, lr=0.0001):
+        super(PolicyEstimator, self).__init__()
 
         self.policy_nn = policy_nn
        
         # Model optimizer
-        self.optimizer = torch.optim.Adam(self.policy_nn.parameters(),lr)
+        self.optimizer = torch.optim.Adam(self.policy_nn.parameters(), lr)
 
-
-    def predict(self,state):
+    def predict(self, state):
 
         """
         Compute the probability for each action corresponding to state s
@@ -115,7 +114,7 @@ class PolicyEstimator(nn.Module):
         
         return self.policy_nn(state)
 
-    def update(self,advantages,log_probs):
+    def update(self, advantages, log_probs):
         """
         Update the weights of the network based on 
             advantages : advantage for each step in the episode
@@ -124,7 +123,7 @@ class PolicyEstimator(nn.Module):
 
         policy_gradients = []
 
-        for log_prob,adv in zip(log_probs,advantages):
+        for log_prob, adv in zip(log_probs, advantages):
             policy_gradients.append(-log_prob * adv)
 
         # Computing gradient ascent using negative loss 
@@ -141,8 +140,7 @@ class PolicyEstimator(nn.Module):
     def sample_action(self, dirichlet_dist):
         return dirichlet_dist.sample()
 
-
-    def select_action(self,state):
+    def select_action(self, state):
         alpha = self.predict(state)
         # print(alpha)
 
@@ -154,9 +152,6 @@ class PolicyEstimator(nn.Module):
         # print(log_prob)
 
         return action, log_prob
-
-
-
 
 
 class ActorCritic:
@@ -203,6 +198,7 @@ class ActorCritic:
                 # Choose action based on the state and current parameter to generate a full episode
                 action, log_prob = policy_est.select_action(state)
                 delta = action - prev_action
+
                 # print(action)
                 action_logs.append(action.numpy())
                 log_probs.append(log_prob)
@@ -275,18 +271,16 @@ class ActorCritic:
                         loss_pol.pop(0)
 
                         if current_mean_valf < best_loss_valf:
-                            torch.save(valf_est.state_dict(), 'models/best_valf_est.pt')
+                            torch.save(valf_est.state_dict(), '../models/actor_critic/best_valf_est.pt')
                             best_loss_valf = current_mean_valf
 
                         if current_mean_pol < best_loss_pol: 
                             last_best = eps
-                            torch.save(policy_est.state_dict(), 'models/best_pol_est.pt')
+                            torch.save(policy_est.state_dict(), '../models/actor_critic/best_pol_est.pt')
                             best_loss_pol = current_mean_pol
 
                         if last_best - eps > 20:
                             break
-
-
 
     def predict(self, env, pred_id=None):
 
@@ -304,12 +298,12 @@ class ActorCritic:
 
         # Define value function approximator
         valf_est = ValueEstimator(env.n_states) 
-        valf_est.load_state_dict(torch.load('models/best_valf_est.pt'))
+        valf_est.load_state_dict(torch.load('../models/actor_critic/best_valf_est.pt'))
 
         # Define policy estimator
         policy_nn = PolicyNN(n_inputs=env.n_states, n_outputs=env.n_assets)
         policy_est = PolicyEstimator(policy_nn) 
-        policy_est.load_state_dict(torch.load('models/best_pol_est.pt'))
+        policy_est.load_state_dict(torch.load('../models/actor_critic/best_pol_est.pt'))
 
 
         while not terminal:
@@ -324,29 +318,26 @@ class ActorCritic:
             next_state = None if terminal else next_state
             prev_action = action
 
-            portfolio = np.dot(action.numpy(), env.assets.reshape((env.n_assets,1)))
+            portfolio = np.dot(action.numpy(), env.assets.reshape((env.n_assets, 1)))
             portfolio_returns.append(portfolio)
 
             # update the total length for this episode
             T += 1
 
             state = next_state
-              
 
         action_logs = pd.DataFrame(np.vstack(action_logs)[:,:2], index=env.dates)
 
         plt.plot(action_logs)
-        plt.savefig('figs/action_logs'+str(pred_id)+'.png')
+        plt.savefig('../figs/action_logs'+str(pred_id)+'.png')
         plt.close()
-
 
         returns_logs = pd.DataFrame({'index': np.array(env.index_returns).flatten(), 
                                      'replicator': np.array(portfolio_returns).flatten()},
                                       index=env.dates)
         returns_logs.plot(marker='.')
-        plt.savefig('figs/returns'+str(pred_id)+'.png')
+        plt.savefig('../figs/returns'+str(pred_id)+'.png')
         plt.close()
-
 
         # unit values
         index_returns = np.array(env.index_returns).flatten()
@@ -360,14 +351,12 @@ class ActorCritic:
         
         values_logs.plot(marker='.')
         plt.legend()
-        plt.savefig('figs/values'+str(pred_id)+'.png')
+        plt.savefig('../figs/values'+str(pred_id)+'.png')
         plt.close()
-
 
         tracking_errors = (returns_logs['index'] - returns_logs['replicator'])**2
 
         return tracking_errors.mean()
-
 
 
 if __name__ == '__main__':
@@ -387,7 +376,7 @@ if __name__ == '__main__':
 
 
     # test
-    env = Env(context='test')
+    env = Env(data_path='../returns.csv', context='test')
     actor_critic_agent = ActorCritic(N_EPISODES, GAMMA, LR_VALF, LR_POL)
 
     TE = []

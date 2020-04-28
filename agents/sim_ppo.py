@@ -8,14 +8,14 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-from sim_environment import SimEnv
+from environments.sim_environment import SimEnv
 from utils.utils import init_weights
 from utils.utils import get_device
 
 
-class PPO(nn.Module):
+class SimPPO(nn.Module):
     def __init__(self, num_assets, hyperparams, std=0):
-        super(PPO, self).__init__()
+        super(SimPPO, self).__init__()
         self.data = []
         self.hyperparams = hyperparams
         self.device = hyperparams['device']
@@ -101,7 +101,7 @@ class PPO(nn.Module):
             entropy = new_dist.entropy().mean()
             _, a = self.select_action(new_dist)
             log_prob_new = new_dist.log_prob(a).sum()
-            ratio = torch.exp(log_prob_new - log_prob.to(self.device))  # a/b == exp(log(a)-log(b))
+            ratio = torch.exp(log_prob_new - log_prob.to(self.device))
 
             surr1 = (ratio * advantage)
             surr2 = (torch.clamp(ratio, 1 - self.hyperparams['eps_clip'], 1 + self.hyperparams['eps_clip']) * advantage).to(self.device)
@@ -114,6 +114,9 @@ class PPO(nn.Module):
             loss.backward()
             self.optimizer.step()
 
+        return loss
+
+
 if __name__ == '__main__':
 
     def main(seed, N_ASSETS, S0, MUS, SIGMAS, T, EPS_PARAM, params_PPO):
@@ -124,18 +127,16 @@ if __name__ == '__main__':
         device = params_PPO['device']
 
         env = SimEnv(N_ASSETS, S0, MUS, SIGMAS, T, EPS_PARAM)
-        model = PPO(N_ASSETS, params_PPO).float().to(device)
+        model = SimPPO(N_ASSETS, params_PPO).float().to(device)
 
+        losses = []
         replicator_returns = []
         index_returns = []
 
         for episode in range(5):
 
-            # print('episode: ', n_epi)
             s = env.reset()
             for day in range(T):  # 252 days in an episode
-
-                # print('day :', day)
 
                 for t in range(params_PPO['T_horizon']):
                     dist = model.pi(torch.from_numpy(s).float().to(device))
@@ -150,19 +151,18 @@ if __name__ == '__main__':
                                        dist.log_prob(a).sum()))
                     s = s_prime
 
-                model.update()
-
+                losses.append(model.update())
                 replicator_returns.append(env.portfolio)
                 index_returns.append(env.index)
 
-        return replicator_returns, index_returns
+        return losses, replicator_returns, index_returns
 
     device = get_device()
 
     # Environment params
     N_ASSETS = 3
     EPS_PARAM = (0, 0.01)
-    T = 252  # trading days in a year (this could be the end of an episode)
+    T = 50  # trading days in a year (this could be the end of an episode)
     S0 = np.array([10, 15, 20])
     MUS = np.array([-0.01, 0.02, 0.05])
     SIGMAS = np.array([0.01, 0.05, 0.10])
@@ -176,20 +176,35 @@ if __name__ == '__main__':
                    'T_horizon': 20,
                    'device': device}
 
-    n_seeds = 5
+    n_seeds = 1
+    losses_runs = []
     rep_runs = []
     index_runs = []
 
     for experiment in range(n_seeds):
-        rep, index = main(experiment, N_ASSETS, S0, MUS, SIGMAS, T, EPS_PARAM, hyperparams)
+        print('seed: ', experiment+1)
+        loss, rep, index = main(experiment, N_ASSETS, S0, MUS, SIGMAS, T, EPS_PARAM, hyperparams)
+
+        losses_runs.append(np.array(loss))
         rep_runs.append(np.cumprod(np.array(rep) + 1))
         index_runs.append(np.cumprod(np.array(index) + 1))
 
-    plt.plot(np.array(rep_runs).mean(axis=0), label='Clone')
-    plt.plot(np.array(index_runs).mean(axis=0), label='Index')
-    plt.title('Cumulative Return with multiple seeds')
-    plt.legend()
-    plt.show()
+    # Plot cumulative return
+    f1 = plt.figure()
+    ax1 = f1.add_subplot(111)
+    ax1.plot(np.array(rep_runs).mean(axis=0), label='Clone')
+    ax1.plot(np.array(index_runs).mean(axis=0), label='Index')
+    ax1.title.set_text('Cumulative Return with multiple seeds')
+    ax1.legend()
+    f1.savefig('cum_returns.pdf')
 
+    # Plot loss evolution
+    f2 = plt.figure()
+    ax2 = f2.add_subplot(111)
+    ax2.plot(np.array(losses_runs).mean(axis=0), label='Loss')
+    ax2.title.set_text('Loss over episodes')
+    f2.savefig('loss.pdf')
+
+    print('Done!')
 
 
