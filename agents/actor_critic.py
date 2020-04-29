@@ -1,20 +1,16 @@
 # Necassary import statments
-from index_environment import *
+from environments.index_environment import *
+from agents.base import Base
 import numpy as np
 
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-import torch.nn.functional as F
 
 
-import matplotlib
 import matplotlib.pyplot as plt
-import seaborn as sns
 from collections import namedtuple
 from tqdm.auto import tqdm
-import glob
-
 
 
 class ValueEstimator(nn.Module):
@@ -156,10 +152,7 @@ class PolicyEstimator(nn.Module):
         return action, log_prob
 
 
-
-
-
-class ActorCritic:
+class ActorCritic(Base):
     def __init__(self,n_episodes, gamma, lr_valf, lr_pol, n_hidden_valf, n_hidden_pol):
 
         self.n_episodes = n_episodes

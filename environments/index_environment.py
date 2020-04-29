@@ -1,12 +1,10 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
 
 class Env:
-	def __init__(self, context='train', experiment=0):
+	def __init__(self, data_path='../returns.csv', context='train', experiment=0):
 
-		self.returns = pd.read_csv('returns.csv', index_col=0)
+		self.returns = pd.read_csv(data_path, index_col=0)
 		half = int(self.returns.shape[0]/2)
 
 		if context == 'train':

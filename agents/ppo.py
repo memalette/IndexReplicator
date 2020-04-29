@@ -1,7 +1,7 @@
 import numpy as np
-import pdb
 import pandas as pd
 import matplotlib.pyplot as plt
+from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
 import torch
 import torch.nn as nn
@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 from environments.index_environment import Env
-from utils.utils import init_weights, get_device, Exp
+from utils.utils import init_weights, get_device, hyperparam_search, Exp
 from agents.base import Base
 
 
@@ -21,9 +21,9 @@ class PPO(nn.Module, Base):
         self.hyperparams = hyperparams
         self.device = hyperparams['device']
 
-        self.fc1 = nn.Linear(num_states, 256)
-        self.fc_pi = nn.Linear(256, num_assets)
-        self.fc_v = nn.Linear(256, 1)
+        self.fc1 = nn.Linear(num_states, self.hyperparams['hidden_size'])
+        self.fc_pi = nn.Linear(self.hyperparams['hidden_size'], num_assets)
+        self.fc_v = nn.Linear(self.hyperparams['hidden_size'], 1)
         self.exp = Exp()
 
         self.apply(init_weights)
@@ -163,8 +163,8 @@ class PPO(nn.Module, Base):
             loss_ep = []
             while not done:
                 for t in range(self.hyperparams['T_horizon']):
-                    #dist = self.pi(torch.from_numpy(state).float().to(device))
-                    alpha = self.pi(torch.from_numpy(state).float().to(device))
+                    #dist = self.pi(torch.from_numpy(state).float().to(self.device))
+                    alpha = self.pi(torch.from_numpy(state).float().to(self.device))
 
                     #next_action, a = self.select_action(dist)
                     next_action, dist = self.select_action_dir(alpha)
@@ -202,7 +202,7 @@ class PPO(nn.Module, Base):
             best_loss = np.array(losses).mean()
             torch.save(self.state_dict(), '../models/ppo/best_ppo.pt')
 
-        return losses, replicator_returns, index_returns
+        return best_loss, replicator_returns, index_returns
 
     def predict(self, env, pred_id=None):
 
@@ -283,6 +283,27 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
     np.random.seed(seed)
 
+    space = {
+        'gamma': hp.choice('gamma', np.arange(0.90, 0.99, 0.01)),
+        'lmbda': hp.choice('lmbda', np.arange(0.90, 0.99, 0.01)),
+        'hidden_size': hp.choice('hidden_size', [64, 128, 256, 512]),
+        'lr_rate': hp.choice('lr_rate', [0.0005, 0.0005, 0.005, 0.05]),
+        'eps_clip': hp.choice('eps_clip', [0.2]),
+        'K_epoch': hp.choice('K_epoch', [3]),
+        'T_horizon': hp.choice('T_horizon', [20]),
+        'n_episode': hp.choice('n_episode', [500]),
+        'device': hp.choice('device', [device])
+    }
+
+    env = Env(data_path='../returns.csv', context='train')
+
+    def f(params):
+        model = PPO(env.n_states, env.n_assets, params).float().to(params['device'])
+        loss, _,  _ = model.learn(env)
+        return {'loss': loss, 'status': STATUS_OK}
+
+    Best = hyperparam_search(f, space=space, max_trials=2)
+
     # Model hyperparams
     hyperparams = {'lr_rate': 0.0005,
                    'gamma': 0.99,
@@ -291,12 +312,14 @@ if __name__ == '__main__':
                    'K_epoch': 3,
                    'T_horizon': 20,
                    'n_episode': 500,
-                   'device': device}
+                   'hidden_size': 256,
+                   'device': device
+                   }
 
     ##### TRAINING ####
     #env = Env(data_path='../returns.csv', context='train')
     #model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
-    #losses, rep_returns, index_returns = model.learn(env)
+    #best_loss, rep_returns, index_returns = model.learn(env)
 
     # Plot cumulative return
     #f1 = plt.figure()
@@ -307,32 +330,25 @@ if __name__ == '__main__':
     #ax1.legend()
     #f1.savefig('cum_returns.pdf')
 
-    # Plot loss evolution
-    #f2 = plt.figure()
-    #ax2 = f2.add_subplot(111)
-    #ax2.plot(np.array(losses), label='Loss')
-    #ax2.title.set_text('Loss over episodes')
-    #f2.savefig('loss.pdf')
-
     #print('Done training!')
 
     ##### PREDICT #####
 
     ## compute predictions for multiple seeds
 
-    env = Env(data_path='../returns.csv', context='test')
-    model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
+    #env = Env(data_path='../returns.csv', context='test')
+    #model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
 
-    for experiment in range(10):
+    #for experiment in range(10):
 
-        print('SEED: ', experiment)
+    #    print('SEED: ', experiment)
 
-        torch.manual_seed(experiment)
-        np.random.seed(experiment)
+    #    torch.manual_seed(experiment)
+    #    np.random.seed(experiment)
 
-        tracking_error = model.predict(env, pred_id='_ppo' + str(experiment))
+    #    tracking_error = model.predict(env, pred_id='_ppo' + str(experiment))
 
-    print('Done predicting!')
+    #print('Done predicting!')
 
 
 
