@@ -15,25 +15,24 @@ from tqdm.auto import tqdm
 
 class ValueEstimator(nn.Module):
 
-    def __init__(self,n_inputs, n_hidden = 128,lr = 0.00001):
+    def __init__(self, n_inputs, n_hidden=128, lr=0.00001):
         
-        super(ValueEstimator,self).__init__()
+        super(ValueEstimator, self).__init__()
         
         # Model definition
         self.model = nn.Sequential(
-            nn.Linear(n_inputs,n_hidden),
+            nn.Linear(n_inputs, n_hidden),
             nn.ReLU(),
             # nn.Linear(n_hidden,n_hidden),
             # nn.ReLU(),
-            nn.Linear(n_hidden,1)
+            nn.Linear(n_hidden, 1)
         )
        
         # Model optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(),lr)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr)
 
         # Loss criterion
         self.criterion = torch.nn.MSELoss()
-
 
     def predict(self,state):
         """
@@ -93,7 +92,6 @@ class PolicyNN(nn.Module):
         return self.alpha(l1_output) 
 
 
-
 class PolicyEstimator(nn.Module):
     def __init__(self, policy_nn,lr = 0.0001):
         super(PolicyEstimator,self).__init__()
@@ -102,7 +100,6 @@ class PolicyEstimator(nn.Module):
        
         # Model optimizer
         self.optimizer = torch.optim.Adam(self.policy_nn.parameters(),lr)
-
 
     def predict(self,state):
 
@@ -270,23 +267,24 @@ class ActorCritic(Base):
                         loss_pol.pop(0)
 
                         if current_mean_valf < best_loss_valf:
-                            torch.save(valf_est.state_dict(), 'models/best_valf_est.pt')
+                            torch.save(valf_est.state_dict(), '../models/actor_critic/best_valf_est.pt')
                             best_loss_valf = current_mean_valf
 
                         if current_mean_pol < best_loss_pol: 
                             last_best = eps
-                            torch.save(policy_est.state_dict(), 'models/best_pol_est.pt')
+                            torch.save(policy_est.state_dict(), '../models/actor_critic/best_pol_est.pt')
                             best_loss_pol = current_mean_pol
 
                         if last_best - eps > 20:
                             break
 
+    def predict(self, env, start=None, save=False, model_path='../models/actor_critic/', pred_id=None):
 
-
-    def predict(self, env, pred_id=None):
-
-        # reset env
-        state = env.reset()
+        # set start state
+        if start is None:
+            state = env.reset()
+        else:
+            state = env.reset(start)
 
         # instantiate variables
         action_logs = []
@@ -298,14 +296,13 @@ class ActorCritic(Base):
         # load best models 
 
         # Define value function approximator
-        valf_est = ValueEstimator(env.n_states) 
-        valf_est.load_state_dict(torch.load('models/best_valf_est.pt'))
+        valf_est = ValueEstimator(env.n_states, n_hidden=self.n_hidden_valf)
+        valf_est.load_state_dict(torch.load(model_path + 'best_valf_est.pt'))
 
         # Define policy estimator
-        policy_nn = PolicyNN(n_inputs=env.n_states, n_outputs=env.n_assets)
+        policy_nn = PolicyNN(n_inputs=env.n_states, n_hidden=self.n_hidden_pol, n_outputs=env.n_assets)
         policy_est = PolicyEstimator(policy_nn) 
-        policy_est.load_state_dict(torch.load('models/best_pol_est.pt'))
-
+        policy_est.load_state_dict(torch.load(model_path + 'best_pol_est.pt'))
 
         while not terminal:
         
@@ -331,7 +328,8 @@ class ActorCritic(Base):
         action_logs = pd.DataFrame(np.vstack(action_logs)[:,:2], index=env.dates)
 
         plt.plot(action_logs)
-        plt.savefig('figs/action_logs'+str(pred_id)+'.png')
+        if save:
+            plt.savefig('../figs/action_logs'+str(pred_id)+'.png')
         plt.close()
 
 
@@ -339,7 +337,8 @@ class ActorCritic(Base):
                                      'replicator': np.array(portfolio_returns).flatten()},
                                       index=env.dates)
         returns_logs.plot(marker='.')
-        plt.savefig('figs/returns'+str(pred_id)+'.png')
+        if save:
+            plt.savefig('../figs/returns'+str(pred_id)+'.png')
         plt.close()
 
 
@@ -349,39 +348,38 @@ class ActorCritic(Base):
         index_value = np.cumprod(1 + index_returns)
         portfolio_value = np.cumprod(1 + portfolio_returns)
 
+
         values_logs = pd.DataFrame({'index': index_value, 
                                      'replicator': portfolio_value},
                                       index=env.dates)
         
         values_logs.plot(marker='.')
         plt.legend()
-        plt.savefig('figs/values'+str(pred_id)+'.png')
+        if save:
+            plt.savefig('../figs/values'+str(pred_id)+'.png')
         plt.close()
-
 
         tracking_errors = (returns_logs['index'] - returns_logs['replicator'])**2
 
-        return tracking_errors.mean()
-
+        return tracking_errors.mean(), portfolio_returns, portfolio_value
 
 
 if __name__ == '__main__':
 
-
     GAMMA = 0.99
-    N_EPISODES = 1000
+    N_EPISODES = 200
     LR_POL = 0.0001
     LR_VALF = 0.0001
-    EXP = 3
+    EXP = 0
     N_HIDDEN_POL = 400
     N_HIDDEN_VALF = 400
     
-    Transition = namedtuple('Transition',('state','action','reward','next_state'))
+    Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state'))
 
     # train
     env = Env(context='train', experiment=EXP)
     actor_critic_agent = ActorCritic(N_EPISODES, GAMMA, LR_VALF, LR_POL, N_HIDDEN_VALF, N_HIDDEN_POL)
-    actor_critic_agent.learn(env)
+    #actor_critic_agent.learn(env)
 
 
     # test
@@ -390,9 +388,10 @@ if __name__ == '__main__':
 
     TE = []
     for i in range(10):
-        TE.append(actor_critic_agent.predict(env, pred_id=i))
+        te, _, _ = actor_critic_agent.predict(env, pred_id=i)
+        TE.append(te)
 
-    TE = np.array(TE).mean()
+    TE = np.array(TE).mean()*100000
     print('AVERAGE TE: '+str(TE))
 
 

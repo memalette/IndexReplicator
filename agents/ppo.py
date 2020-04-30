@@ -204,10 +204,13 @@ class PPO(nn.Module, Base):
 
         return best_loss, replicator_returns, index_returns
 
-    def predict(self, env, pred_id=None):
+    def predict(self, env, start=None, save=False, model_path='../models/ppo/', pred_id=None):
 
-        # reset env
-        state = env.reset()
+        # set start state
+        if start is None:
+            state = env.reset()
+        else:
+            state = env.reset(start)
 
         # instantiate variables
         action_logs = []
@@ -217,11 +220,11 @@ class PPO(nn.Module, Base):
         T = 0
 
         # load best model
-        self.load_state_dict(torch.load('../models/ppo/best_ppo.pt'))
+        self.load_state_dict(torch.load(model_path+'best_ppo.pt'))
 
         while not done:
-            #dist = self.pi(torch.from_numpy(state).float().to(device))
-            alpha = self.pi(torch.from_numpy(state).float().to(device))
+            #dist = self.pi(torch.from_numpy(state).float().to(self.device))
+            alpha = self.pi(torch.from_numpy(state).float().to(self.device))
 
             #next_action, _ = self.select_action(dist)
             next_action, dist = self.select_action_dir(alpha)
@@ -244,14 +247,16 @@ class PPO(nn.Module, Base):
         action_logs = pd.DataFrame(np.vstack(action_logs)[:, :2], index=env.dates)
 
         plt.plot(action_logs)
-        plt.savefig('../figs/action_logs' + str(pred_id) + '.png')
+        if save:
+            plt.savefig('../figs/action_logs' + str(pred_id) + '.png')
         plt.close()
 
         returns_logs = pd.DataFrame({'index': np.array(env.index_returns).flatten(),
                                      'replicator': np.array(portfolio_returns).flatten()},
                                       index=env.dates)
         returns_logs.plot(marker='.')
-        plt.savefig('../figs/returns' + str(pred_id) + '.png')
+        if save:
+            plt.savefig('../figs/returns' + str(pred_id) + '.png')
         plt.close()
 
         # unit values
@@ -262,16 +267,17 @@ class PPO(nn.Module, Base):
 
         values_logs = pd.DataFrame({'index': index_value,
                                     'replicator': portfolio_value},
-                                   index=env.dates)
+                                    index=env.dates)
 
         values_logs.plot(marker='.')
         plt.legend()
-        plt.savefig('../figs/values' + str(pred_id) + '.png')
+        if save:
+            plt.savefig('../figs/values' + str(pred_id) + '.png')
         plt.close()
 
         tracking_errors = (returns_logs['index'] - returns_logs['replicator']) ** 2
 
-        return tracking_errors.mean()
+        return tracking_errors.mean(), portfolio_returns, portfolio_value
 
 
 if __name__ == '__main__':
@@ -295,14 +301,20 @@ if __name__ == '__main__':
         'device': hp.choice('device', [device])
     }
 
-    env = Env(data_path='../returns.csv', context='train')
-
     def f(params):
-        model = PPO(env.n_states, env.n_assets, params).float().to(params['device'])
-        loss, _,  _ = model.learn(env)
-        return {'loss': loss, 'status': STATUS_OK}
 
-    Best = hyperparam_search(f, space=space, max_trials=2)
+        # training
+        env = Env(context='train')
+        model = PPO(env.n_states, env.n_assets, params).float().to(params['device'])
+        model.learn(env)
+
+        # testing
+        env = Env(context='test')
+        model = PPO(env.n_states, env.n_assets, params).float().to(params['device'])
+        te, _, _ = model.predict(env)
+        return {'loss': te, 'status': STATUS_OK}
+
+    #Best = hyperparam_search(f, space=space, max_trials=50)
 
     # Model hyperparams
     hyperparams = {'lr_rate': 0.0005,
@@ -317,8 +329,8 @@ if __name__ == '__main__':
                    }
 
     ##### TRAINING ####
-    #env = Env(data_path='../returns.csv', context='train')
-    #model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
+    env = Env(context='train', experiment=0)
+    model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
     #best_loss, rep_returns, index_returns = model.learn(env)
 
     # Plot cumulative return
@@ -330,25 +342,28 @@ if __name__ == '__main__':
     #ax1.legend()
     #f1.savefig('cum_returns.pdf')
 
-    #print('Done training!')
+    print('Done training!')
 
     ##### PREDICT #####
 
     ## compute predictions for multiple seeds
 
-    #env = Env(data_path='../returns.csv', context='test')
-    #model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
+    env = Env(context='test', experiment=0)
+    model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
 
-    #for experiment in range(10):
+    TE = []
+    for experiment in range(10):
 
-    #    print('SEED: ', experiment)
+        print('SEED: ', experiment)
 
-    #    torch.manual_seed(experiment)
-    #    np.random.seed(experiment)
+        torch.manual_seed(experiment)
+        np.random.seed(experiment)
 
-    #    tracking_error = model.predict(env, pred_id='_ppo' + str(experiment))
+        te, _, _ = model.predict(env, pred_id='_ppo' + str(experiment))
+        TE.append(te)
 
-    #print('Done predicting!')
+    print('Done predicting!')
+    print('Mean TE: ', round(np.array(TE).mean()*100000, 4))
 
 
 
