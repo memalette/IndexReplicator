@@ -80,15 +80,8 @@ agent_ppo = PPO(env.n_states, env.n_assets, params_ppo["hyperparams"]).float().t
 
 # REINFORCE
 params_reinforce = config['RE']
-reinforce_hyperparams = {
-    'n_episodes' : params_reinforce['n_episode'] ,
-    'gamma' : params_reinforce['gamma'],
-    'learning_rate' : params_reinforce['gamma'] ,
-    'hidden_layer_neurons' : params_reinforce['gamma']
-	}
-	
-  # train
 agent_reinforce = reinforce_agent(params_reinforce["hyperparams"] , env)
+
 
 # main loop for figures
 n_figs = 9
@@ -138,8 +131,8 @@ for i in range(args.n_tests):
     TE_PPO.append(te_ppo)
     TE_RE.append(te_reinforce)
 
-#print('mean Tracking Error for PF: ', round(np.array(TE_PF).mean()*100000, 4))
+print('mean Tracking Error for PF: ', round(np.array(TE_PF).mean()*100000, 4))
 print('mean Tracking Error for A2C: ', round(np.array(TE_AC).mean()*100000, 4))
 print('mean Tracking Error for PPO: ', round(np.array(TE_PPO).mean()*100000, 4))
-print('mean Tracking Error for PPO: ', round(np.array(TE_RE).mean()*100000, 4))
+print('mean Tracking Error for REINFORCE: ', round(np.array(TE_RE).mean()*100000, 4))
 
