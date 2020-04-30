@@ -1,5 +1,8 @@
+import sys
+sys.path.append('../')
+
 from environments.index_environment import *
-#from agents.base import Base
+from agents.base import Base
 import numpy as np
 import pandas as pd
 
@@ -137,6 +140,7 @@ class reinforce_agent():
     #print(results)
     #return results
 		torch.save(self.Policy.state_dict(), '../models/reinforce/reinforce.pt')
+		print('done')
 
 
 	def predict(self, env , start = None , save = False , model_path='../models/reinforce/',pred_id=None):
@@ -211,8 +215,8 @@ if __name__ == '__main__':
 	hyperparams = {
     'n_episodes' : 1000 ,
     'gamma' : 1,
-    'learning_rate' : 1e-4 ,
-    'hidden_layer_neurons' : 100,
+    'learning_rate' : 1e-3 ,
+    'hidden_layer_neurons' : 200,
     'Exp_num' : 1
 	}
 	
@@ -227,9 +231,8 @@ if __name__ == '__main__':
 	
 	TE = []
 	for i in range(10):
-		te, _, _ = agent.predict(env, pred_id=i)
+		te, _, _ = agent.predict(env, pred_id=i , save= True)
 		TE.append(te)
 
-	TE = np.array(TE).mean()*100000
+	TE = np.array(TE).mean()
 	print('AVERAGE TE: '+str(TE))
-
