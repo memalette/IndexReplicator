@@ -3,6 +3,7 @@ sys.path.append('../')
 
 from environments.index_environment import *
 from agents.base import Base
+from utils.utils import Exp
 import numpy as np
 import pandas as pd
 
@@ -18,16 +19,6 @@ import matplotlib.pyplot as plt
 from collections import namedtuple
 from tqdm.auto import tqdm
 
-
-class Exp(nn.Module):
-
-    def __init__(self):
-        super(Exp, self).__init__()
-
-    def forward(self, x):
-        out = torch.exp(x)
-        out = torch.clamp(out, min=0.0001)
-        return out
 
 class PolicyNN(nn.Module):
     def __init__(self,n_inputs, n_outputs, n_hidden = 128):
@@ -49,11 +40,11 @@ class PolicyNN(nn.Module):
 
     def forward(self,state):
         l1_output = self.l1(state)
-        return self.alpha(l1_output) 
+        return self.alpha(l1_output)
 
 		
-class reinforce_agent():
-	def __init__(self, hyperparams , environment ):
+class reinforce_agent(Base):
+	def __init__(self, hyperparams , environment):
   
 		self.env = environment
 		self.state_dim = self.env.n_states

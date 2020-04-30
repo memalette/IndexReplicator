@@ -1,6 +1,8 @@
 from scipy.stats import *
 from numpy.random import random
+import matplotlib.pyplot as plt
 from environments.index_environment import *
+
 
 class ParticleFilter:
 	def __init__(self, n_particles, n_assets, vol, likeli_scale):
@@ -15,21 +17,24 @@ class ParticleFilter:
 	def initialize_action(self):
 		action = np.random.uniform(0, 1, (self.n_particles, self.n_assets))
 		sums = np.sum(action, axis=1).reshape(action.shape[0],1)
-		div =  np.tile(sums, self.n_assets) 
+		div =  np.tile(sums, self.n_assets)
 		action = action/div
 
 		return action
-
 
 	def multinomial_resample(self, weights):
 		cumul_sum = np.cumsum(weights)
 		cumul_sum[-1] = 1.
 		return np.searchsorted(cumul_sum, random(len(weights)))
 
+	def learn(self, env, start=None):
 
-	def learn(self, env):
+		# set start state
+		if start is None:
+			state = env.reset()
+		else:
+			state = env.reset(start)
 
-		state = env.reset()
 		action_logs = []
 		portfolio_returns = []
 
@@ -43,7 +48,7 @@ class ParticleFilter:
 												)
 			action_pres = action + epsilon
 			sums = np.sum(action_pres, axis=1).reshape(action_pres.shape[0],1)
-			div =  np.tile(sums, self.n_assets)  
+			div = np.tile(sums, self.n_assets)
 			action_pres = action_pres/div
 			
 
@@ -58,14 +63,19 @@ class ParticleFilter:
 			action_post = action_pres[idx]
 
 			action = action_post.mean(0)
-			portfolio = np.dot(action.T, env.assets.reshape((self.n_assets,1)))
-			print(portfolio - env.index)
+			portfolio = np.dot(action.T, env.assets.reshape((self.n_assets, 1)))
 			portfolio_returns.append(portfolio)
 			action_logs.append(action)
 
-			i+=1
+			i += 1
 
-		return action_logs, env.index_returns, portfolio_returns
+		index_returns = np.array(env.index_returns).flatten()
+		portfolio_returns = np.array(portfolio_returns).flatten()
+
+		portfolio_values = np.cumprod(1 + portfolio_returns)
+		tracking_errors = (index_returns - portfolio_returns)**2
+
+		return tracking_errors.mean(), env.index_returns, portfolio_returns, portfolio_values
 
 
 
@@ -82,17 +92,19 @@ if __name__ == '__main__':
 								n_particles=N_PARTICLES, 
 								n_assets=env.n_assets, 
 								vol=VOL, 
-								likeli_scale = LIKELI_SCALE
+								likeli_scale=LIKELI_SCALE
 								)
 
-	action_logs, index_returns, portfolio_returns = particle_filter_agent.learn(env)
+	TE, index_returns, portfolio_returns, portfolio_values = particle_filter_agent.learn(env)
+	print('Tracking error: ', round(TE*100000, 4))
 
-	action_logs = np.vstack(action_logs)
-	gross_levergage = np.abs(action_logs).sum(1)
 
-	plt.plot(gross_levergage)
-	plt.title('Replication Portfolio gross leverage')
-	plt.show()
+	#action_logs = np.vstack(action_logs)
+	#gross_levergage = np.abs(action_logs).sum(1)
+
+	#plt.plot(gross_levergage)
+	#plt.title('Replication Portfolio gross leverage')
+	#plt.show()
 
 	plt.close()
 	plt.plot(np.array(index_returns).flatten())
