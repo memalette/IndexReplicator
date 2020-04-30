@@ -65,7 +65,7 @@ class reinforce_agent(Base):
 		return action, log_prob
   
   
-	def train(self):
+	def learn(self):
 		self.Policy = PolicyNN(self.state_dim , self.n_actions , self.hyperparams['hidden_layer_neurons'])
 		self.reinforce()
   
@@ -148,7 +148,7 @@ class reinforce_agent(Base):
 		T = 0
 		#print(model_path + 'reinforce.pt')
 		self.Policy = PolicyNN(env.n_states , env.n_assets , self.hyperparams['hidden_layer_neurons'])
-		self.Policy.load_state_dict(torch.load(model_path + 'reinforce.pt'))
+		self.Policy.load_state_dict(torch.load(model_path + 'reinforce_exp'+str(env.experiment)+'.pt'))
 
 		while not terminal:
 			action,_ = self.select_action(state)
@@ -215,7 +215,7 @@ if __name__ == '__main__':
     # train
 	env = Env(context='train', experiment=hyperparams['Exp_num'])
 	agent = reinforce_agent(hyperparams , env)
-	agent.train()
+	agent.learn()
 
     # test
 	env = Env(context='test', experiment=hyperparams['Exp_num'])

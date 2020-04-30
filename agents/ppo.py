@@ -223,7 +223,7 @@ class PPO(nn.Module, Base):
         T = 0
 
         # load best model
-        self.load_state_dict(torch.load(model_path+'best_ppot.pt'))
+        self.load_state_dict(torch.load(model_path + 'best_ppo' + str(env.experiment)+'.pt'))
 
         while not done:
             #dist = self.pi(torch.from_numpy(state).float().to(self.device))

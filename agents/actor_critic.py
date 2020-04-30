@@ -1,6 +1,7 @@
 # Necassary import statments
 from environments.index_environment import *
 from agents.base import Base
+from utils.utils import Exp
 import numpy as np
 
 import torch
@@ -56,17 +57,6 @@ class ValueEstimator(nn.Module):
         # print('loss value estimator: '+str(loss))
 
         return float(loss.detach().numpy())
-        
-
-class Exp(nn.Module):
-
-    def __init__(self):
-        super(Exp, self).__init__()
-
-    def forward(self, x):
-        out = torch.exp(x)
-        out = torch.clamp(out, min=0.0001)
-        return out
 
 
 class PolicyNN(nn.Module):
@@ -297,12 +287,14 @@ class ActorCritic(Base):
 
         # Define value function approximator
         valf_est = ValueEstimator(env.n_states, n_hidden=self.n_hidden_valf)
-        valf_est.load_state_dict(torch.load(model_path + 'best_valf_est.pt'))
+        #valf_est.load_state_dict(torch.load(model_path + 'best_valf_est.pt'))
+        valf_est.load_state_dict(torch.load(model_path + 'best_valf_est' + str(env.experiment)+'.pt'))
 
         # Define policy estimator
         policy_nn = PolicyNN(n_inputs=env.n_states, n_hidden=self.n_hidden_pol, n_outputs=env.n_assets)
-        policy_est = PolicyEstimator(policy_nn) 
-        policy_est.load_state_dict(torch.load(model_path + 'best_pol_est.pt'))
+        policy_est = PolicyEstimator(policy_nn)
+        #policy_est.load_state_dict(torch.load(model_path + 'best_pol_est.pt'))
+        policy_est.load_state_dict(torch.load(model_path + 'best_pol_est' + str(env.experiment)+'.pt'))
 
         while not terminal:
         
@@ -371,15 +363,15 @@ if __name__ == '__main__':
     LR_POL = 0.0001
     LR_VALF = 0.0001
     EXP = 0
-    N_HIDDEN_POL = 400
-    N_HIDDEN_VALF = 400
+    N_HIDDEN_POL = 200
+    N_HIDDEN_VALF = 200
     
     Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state'))
 
     # train
     env = Env(context='train', experiment=EXP)
     actor_critic_agent = ActorCritic(N_EPISODES, GAMMA, LR_VALF, LR_POL, N_HIDDEN_VALF, N_HIDDEN_POL)
-    #actor_critic_agent.learn(env)
+    actor_critic_agent.learn(env)
 
 
     # test

@@ -4,12 +4,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def plot_returns(env, a, b, c, save_path):
+def plot_returns(env, a, b, c, d, save_path):
 
     returns_logs = pd.DataFrame({'index': np.array(env.index_returns).flatten(),
                                  'PF': np.array(a).flatten(),
                                  'A2C': np.array(b).flatten(),
-                                 'PPO': np.array(c).flatten()},
+                                 'PPO': np.array(c).flatten(),
+                                 'RE': np.array(d).flatten()},
                                  index=env.dates)
 
     returns_logs.plot(marker='.')
@@ -20,7 +21,7 @@ def plot_returns(env, a, b, c, save_path):
     plt.close()
 
 
-def plot_values(env, a, b, c, save_path):
+def plot_values(env, a, b, c, d, save_path):
 
     index_returns = np.array(env.index_returns).flatten()
     index_value = np.cumprod(1 + index_returns)
@@ -28,12 +29,14 @@ def plot_values(env, a, b, c, save_path):
     returns_logs = pd.DataFrame({'index': index_value,
                                  'PF': np.array(a).flatten(),
                                  'A2C': np.array(b).flatten(),
-                                 'PPO': np.array(c).flatten()},
+                                 'PPO': np.array(c).flatten(),
+                                 'RE': np.array(d).flatten()},
                                  index=env.dates)
 
     returns_logs.plot(marker='.')
-    plt.title('Values')
-    #plt.xticks(range(len(returns_logs.index.values)), returns_logs.index.values, rotation=30)
+    plt.title('Portfolio Values')
+    #plt.xticks(range(len(returns_logs.index)), returns_logs.index, rotation=30)
+    plt.xlabel('')
     plt.legend()
     plt.savefig(save_path)
     plt.close()

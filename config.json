@@ -12,20 +12,20 @@
         "lr_pol": 0.0001,
         "lr_valf": 0.0001,
         "exp": 3,
-        "n_hidden_pol": 400,
-        "n_hidden_valf": 400
+        "n_hidden_pol": 200,
+        "n_hidden_valf": 200
     },
 
     "PPO":{
         "best_model_path":"./models/ppo/",
-        "hyperparams": {"lr_rate": 0.0005,
-                   "gamma": 0.99,
-                   "lmbda": 0.95,
+        "hyperparams": {"lr_rate": 0.005,
+                   "gamma": 0.90,
+                   "lmbda": 0.98,
                    "eps_clip": 0.2,
                    "K_epoch": 3,
                    "T_horizon": 20,
                    "n_episode": 500,
-                   "hidden_size": 256,
+                   "hidden_size": 128,
                    "device": null
                    }
     },
@@ -35,7 +35,7 @@
         "hyperparams": {"n_episodes" : 100,
                         "gamma" : 0.99,
                         "learning_rate" : 1e-3 ,
-                        "hidden_layer_neurons" : 200
+                        "hidden_layer_neurons" : 20
                    }
     }
 }
