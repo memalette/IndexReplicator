@@ -296,7 +296,7 @@ if __name__ == '__main__':
         'gamma': hp.choice('gamma', np.arange(0.90, 0.99, 0.01)),
         'lmbda': hp.choice('lmbda', np.arange(0.90, 0.99, 0.01)),
         'hidden_size': hp.choice('hidden_size', [64, 128, 256, 512]),
-        'lr_rate': hp.choice('lr_rate', [0.0005, 0.0005, 0.005, 0.05]),
+        'lr_rate': hp.choice('lr_rate', [0.00005, 0.0005, 0.005, 0.05]),
         'eps_clip': hp.choice('eps_clip', [0.2]),
         'K_epoch': hp.choice('K_epoch', [3]),
         'T_horizon': hp.choice('T_horizon', [20]),
