@@ -81,15 +81,14 @@ agent_ppo = PPO(env.n_states, env.n_assets, params_ppo["hyperparams"]).float().t
 # REINFORCE
 params_reinforce = config['RE']
 reinforce_hyperparams = {
-    'n_episodes' : 1000 ,
-    'gamma' : 1,
-    'learning_rate' : 1e-4 ,
-    'hidden_layer_neurons' : 100,
-    'Exp_num' : 1
+    'n_episodes' : params_reinforce['n_episode'] ,
+    'gamma' : params_reinforce['gamma'],
+    'learning_rate' : params_reinforce['gamma'] ,
+    'hidden_layer_neurons' : params_reinforce['gamma']
 	}
 	
   # train
-agent_reinforce = reinforce_agent(reinforce_hyperparams , env)
+agent_reinforce = reinforce_agent(params_reinforce["hyperparams"] , env)
 
 # main loop for figures
 n_figs = 9
