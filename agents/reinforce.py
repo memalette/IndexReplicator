@@ -155,7 +155,8 @@ class reinforce_agent():
 		prev_action = 0
 		terminal = False
 		T = 0
-		self.Policy = PolicyNN(self.state_dim , self.n_actions , self.hyperparams['hidden_layer_neurons'])
+		#print(model_path + 'reinforce.pt')
+		self.Policy = PolicyNN(env.n_states , env.n_assets , self.hyperparams['hidden_layer_neurons'])
 		self.Policy.load_state_dict(torch.load(model_path + 'reinforce.pt'))
 
 		while not terminal:
@@ -213,11 +214,11 @@ class reinforce_agent():
 if __name__ == '__main__':
 
 	hyperparams = {
-    'n_episodes' : 1000 ,
-    'gamma' : 1,
+    'n_episodes' : 100 ,
+    'gamma' : 0.99,
     'learning_rate' : 1e-3 ,
     'hidden_layer_neurons' : 200,
-    'Exp_num' : 1
+    'Exp_num' : 0
 	}
 	
     # train
