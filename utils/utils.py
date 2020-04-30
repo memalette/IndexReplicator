@@ -1,5 +1,7 @@
+import json
 import torch
 import torch.nn as nn
+
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
 
@@ -13,6 +15,12 @@ def init_weights(m):
     if isinstance(m, nn.Linear):
       nn.init.normal_(m.weight, mean=0., std=0.1)
       nn.init.constant_(m.bias, 0.1)
+
+
+def read_config_file(config_path):
+    with open(config_path) as json_data_file:
+        data = json.load(json_data_file)
+    return data
 
 
 def hyperparam_search(f, space, max_trials):
