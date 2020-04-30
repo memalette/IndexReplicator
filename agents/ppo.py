@@ -148,7 +148,7 @@ class PPO(nn.Module, Base):
     def learn(self, env):
 
         best_loss = 10000000
-        torch.save(self.state_dict(), '../models/ppo/best_ppo.pt')
+        torch.save(self.state_dict(), '../models/ppo/best_ppot.pt')
 
         losses = []
         replicator_returns = []
@@ -203,7 +203,7 @@ class PPO(nn.Module, Base):
 
         if np.array(losses).mean() < best_loss:
             best_loss = np.array(losses).mean()
-            torch.save(self.state_dict(), '../models/ppo/best_ppo.pt')
+            torch.save(self.state_dict(), '../models/ppo/best_ppot.pt')
 
         return best_loss, replicator_returns, index_returns
 
@@ -223,7 +223,7 @@ class PPO(nn.Module, Base):
         T = 0
 
         # load best model
-        self.load_state_dict(torch.load(model_path+'best_ppo.pt'))
+        self.load_state_dict(torch.load(model_path+'best_ppot.pt'))
 
         while not done:
             #dist = self.pi(torch.from_numpy(state).float().to(self.device))
@@ -270,7 +270,7 @@ class PPO(nn.Module, Base):
 
         values_logs = pd.DataFrame({'index': index_value,
                                     'replicator': portfolio_value},
-                                    index=env.dates)
+                                     index=env.dates)
 
         values_logs.plot(marker='.')
         plt.legend()
@@ -317,25 +317,25 @@ if __name__ == '__main__':
         te, _, _ = model.predict(env)
         return {'loss': te, 'status': STATUS_OK}
 
-    best = hyperparam_search(f, space=space, max_trials=25)
-    print('best combination:', best)
+    #best = hyperparam_search(f, space=space, max_trials=25)
+    #print('best combination:', best)
 
     # Model hyperparams
     hyperparams = {'lr_rate': 0.0005,
-                   'gamma': 0.99,
-                   'lmbda': 0.95,
+                   'gamma': 0.90,
+                   'lmbda': 0.98,
                    'eps_clip': 0.2,
                    'K_epoch': 3,
                    'T_horizon': 20,
-                   'n_episode': 500,
-                   'hidden_size': 256,
+                   'n_episode': 200,
+                   'hidden_size': 512,
                    'device': device
                    }
 
     ##### TRAINING ####
     env = Env(context='train', experiment=0)
     model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
-    #best_loss, rep_returns, index_returns = model.learn(env)
+    best_loss, rep_returns, index_returns = model.learn(env)
 
     # Plot cumulative return
     #f1 = plt.figure()
@@ -352,22 +352,22 @@ if __name__ == '__main__':
 
     ## compute predictions for multiple seeds
 
-    #env = Env(context='test', experiment=0)
-    #model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
+    env = Env(context='test', experiment=0)
+    model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
 
     TE = []
-    #for experiment in range(10):
+    for experiment in range(10):
 
-    #    print('SEED: ', experiment)
+        print('SEED: ', experiment)
 
-    #    torch.manual_seed(experiment)
-    #    np.random.seed(experiment)
+        torch.manual_seed(experiment)
+        np.random.seed(experiment)
 
-    #    te, _, _ = model.predict(env, pred_id='_ppo' + str(experiment))
-    #    TE.append(te)
+        te, _, _ = model.predict(env, pred_id='_ppo' + str(experiment))
+        TE.append(te)
 
-    #print('Done predicting!')
-    #print('Mean TE: ', round(np.array(TE).mean()*100000, 4))
+    print('Done predicting!')
+    print('Mean TE: ', round(np.array(TE).mean()*100000, 4))
 
 
 
