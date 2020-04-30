@@ -1,6 +1,11 @@
 # Byte-compiled files
 agents/__pycache__/
+data/__pycache__/
 environments/__pycache__/
 utils/__pycache__/
 
+# Pycharm setting file
 .idea/
+
+# Figures
+figs/
