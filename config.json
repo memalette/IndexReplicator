@@ -27,6 +27,7 @@
     },
 
     "RE": {
-        "best_model_path": "./model/reinforce/"
+        "best_model_path": "./model/reinforce/",
+        "hyperparams": {}
     }
 }

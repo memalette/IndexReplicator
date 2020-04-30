@@ -79,17 +79,8 @@ params_ppo = config["PPO"]
 agent_ppo = PPO(env.n_states, env.n_assets, params_ppo["hyperparams"]).float().to(device)
 
 # REINFORCE
-params_reinforce = config['RE']
-reinforce_hyperparams = {
-    'n_episodes' : 1000 ,
-    'gamma' : 1,
-    'learning_rate' : 1e-4 ,
-    'hidden_layer_neurons' : 100,
-    'Exp_num' : 1
-	}
-	
-  # train
-agent_reinforce = reinforce_agent(reinforce_hyperparams , env)
+params_re = config['RE']
+agent_reinforce = reinforce_agent(params_re['hyperparams'] , env)
 
 # main loop for figures
 n_figs = 9
@@ -105,7 +96,7 @@ for fig in range(n_figs):
     _, returns_ppo, values_ppo = \
         agent_ppo.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ppo["best_model_path"])
     _, returns_reinforce, values_reinforce = \
-        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_reinforce["best_model_path"])
+        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_re["best_model_path"])
 
     # plot graphs
     returns_path = experiment_path + '_returns_all_' + str(fig) + '.png'
@@ -132,7 +123,7 @@ for i in range(args.n_tests):
     te_ppo, _, _ = \
         agent_ppo.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ppo["best_model_path"])
     te_reinforce, _, _ = \
-        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_reinforce["best_model_path"])
+        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_re["best_model_path"])
 
     # append values
     TE_AC.append(te_ac)
@@ -143,4 +134,6 @@ for i in range(args.n_tests):
 print('mean Tracking Error for A2C: ', round(np.array(TE_AC).mean()*100000, 4))
 print('mean Tracking Error for PPO: ', round(np.array(TE_PPO).mean()*100000, 4))
 print('mean Tracking Error for PPO: ', round(np.array(TE_RE).mean()*100000, 4))
+
+
 
