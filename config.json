@@ -11,9 +11,9 @@
         "n_episodes": 1000,
         "lr_pol": 0.0001,
         "lr_valf": 0.0001,
-        "exp": 3,
-        "n_hidden_pol": 200,
-        "n_hidden_valf": 200
+        "exp": 0,
+        "n_hidden_pol": 300,
+        "n_hidden_valf": 300
     },
 
     "PPO":{
