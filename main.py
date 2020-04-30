@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import torch
 
+
 from environments.index_environment import Env
 from utils.utils import get_device, read_config_file
 from utils.utils_graphs import plot_returns, plot_values
@@ -77,6 +78,7 @@ agent_ppo = PPO(env.n_states, env.n_assets, params_ppo["hyperparams"]).float().t
 params_re = config['RE']
 agent_reinforce = reinforce_agent(params_re['hyperparams'] , env)
 
+
 # main loop for figures
 n_figs = 1
 
@@ -120,7 +122,7 @@ for i in range(args.n_tests):
         agent_ac.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ac["best_model_path"])
     te_ppo, _, _ = \
         agent_ppo.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ppo["best_model_path"])
-    te_reinforce, _, _ = \
+    te_re, _, _ = \
         agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_re["best_model_path"])
 
     # append values
@@ -129,9 +131,9 @@ for i in range(args.n_tests):
     TE_PPO.append(te_ppo)
     TE_RE.append(te_re)
 
+
 print('mean Tracking Error for PF: ', round(np.array(TE_PF).mean()*100000, 4))
 print('mean Tracking Error for A2C: ', round(np.array(TE_AC).mean()*100000, 4))
 print('mean Tracking Error for PPO: ', round(np.array(TE_PPO).mean()*100000, 4))
 print('mean Tracking Error for REINFORCE: ', round(np.array(TE_RE).mean()*100000, 4))
-
 
