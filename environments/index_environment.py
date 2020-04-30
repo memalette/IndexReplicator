@@ -1,12 +1,11 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 
 class Env:
-	def __init__(self, context='train', experiment=0):
+	def __init__(self, data_path='../data/returns.csv', context='train', experiment=0):
 
-		self.returns = pd.read_csv('returns.csv', index_col=0)
+		self.returns = pd.read_csv(data_path, index_col=0)
 		half = int(self.returns.shape[0]/2)
 
 		if context == 'train':
@@ -25,10 +24,13 @@ class Env:
 
 		self.reset()
 
-
-	def reset(self):
+	def reset(self, start=None):
 		# reset values
-		self.start = int(np.random.uniform(0, self.history_len-self.T))
+		if start is None:
+			self.start = int(np.random.uniform(0, self.history_len-self.T))
+		else:
+			self.start = start
+
 		self.t = 0
 		
 		self.prev_action = 0
