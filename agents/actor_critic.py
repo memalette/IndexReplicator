@@ -1,59 +1,58 @@
 # Necassary import statments
-from environments.index_environment import *
-from agents.base import Base
+from environments.index_environment import Env
 import numpy as np
+import pandas as pd
 
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import torch.nn.functional as F
 
 
+import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
 from collections import namedtuple
 from tqdm.auto import tqdm
+import glob
+
 
 
 class ValueEstimator(nn.Module):
 
-    def __init__(self, n_inputs, n_hidden=128, lr=0.00001):
+    def __init__(self,n_inputs, n_hidden ,lr ):
         
-        super(ValueEstimator, self).__init__()
+        super(ValueEstimator,self).__init__()
         
         # Model definition
         self.model = nn.Sequential(
-            nn.Linear(n_inputs, n_hidden),
+            nn.Linear(n_inputs,n_hidden),
             nn.ReLU(),
-            # nn.Linear(n_hidden,n_hidden),
-            # nn.ReLU(),
-            nn.Linear(n_hidden, 1)
+            nn.Linear(n_hidden,n_hidden),
+            nn.ReLU(),
+            nn.Linear(n_hidden,1)
         )
        
         # Model optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr)
+        self.optimizer = torch.optim.Adam(self.model.parameters(),lr)
 
         # Loss criterion
         self.criterion = torch.nn.MSELoss()
 
+
     def predict(self,state):
-        """
-        Compute the probability for each action corresponding to state s
-        """
+        
         state = torch.tensor(state, dtype=torch.float)
         with torch.no_grad():
             return self.model(state)
 
     def update(self,states,returns):
-        """
-        Update the weights of the network based on 
-            states     : input states for the value estimator
-            returns    : actual monte-carlo return for the states
-        """
+       
         pred_returns = self.model(states)
         loss = self.criterion(pred_returns,Variable(returns))
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        # print('loss value estimator: '+str(loss))
 
         return float(loss.detach().numpy())
         
@@ -70,13 +69,17 @@ class Exp(nn.Module):
 
 
 class PolicyNN(nn.Module):
-    def __init__(self,n_inputs, n_outputs, n_hidden = 128):
+    def __init__(self,n_inputs, n_outputs, n_hidden):
         super(PolicyNN,self).__init__()
 
         # Model definition
         # first layer
         self.l1 = nn.Sequential(
             nn.Linear(n_inputs,n_hidden),
+            #nn.Dropout(0.6),
+            nn.ReLU(),
+
+            nn.Linear(n_hidden,n_hidden),
             #nn.Dropout(0.6),
             nn.ReLU(),
 
@@ -92,14 +95,16 @@ class PolicyNN(nn.Module):
         return self.alpha(l1_output) 
 
 
+
 class PolicyEstimator(nn.Module):
-    def __init__(self, policy_nn,lr = 0.0001):
+    def __init__(self, policy_nn,lr ):
         super(PolicyEstimator,self).__init__()
 
         self.policy_nn = policy_nn
        
         # Model optimizer
         self.optimizer = torch.optim.Adam(self.policy_nn.parameters(),lr)
+
 
     def predict(self,state):
 
@@ -108,11 +113,6 @@ class PolicyEstimator(nn.Module):
         return self.policy_nn(state)
 
     def update(self,advantages,log_probs):
-        """
-        Update the weights of the network based on 
-            advantages : advantage for each step in the episode
-            log_probs  : log of probability 
-        """
 
         policy_gradients = []
 
@@ -149,7 +149,10 @@ class PolicyEstimator(nn.Module):
         return action, log_prob
 
 
-class ActorCritic(Base):
+
+
+
+class ActorCritic:
     def __init__(self,n_episodes, gamma, lr_valf, lr_pol, n_hidden_valf, n_hidden_pol):
 
         self.n_episodes = n_episodes
@@ -238,7 +241,7 @@ class ActorCritic(Base):
                   
                     for reward,next_state in zip(rewards,next_states):
                         if next_state is not None:
-                            R = torch.tensor(reward) + self.gamma * valf_est.predict(next_state)
+                            R = torch.tensor(reward, dtype=torch.float) + self.gamma * valf_est.predict(next_state)
                         else:
                             R = torch.tensor(reward)
 
@@ -267,16 +270,18 @@ class ActorCritic(Base):
                         loss_pol.pop(0)
 
                         if current_mean_valf < best_loss_valf:
-                            torch.save(valf_est.state_dict(), '../models/actor_critic/best_valf_est.pt')
+                            torch.save(valf_est.state_dict(), 'models/actor_critic/best_valf_est0.pt')
                             best_loss_valf = current_mean_valf
 
                         if current_mean_pol < best_loss_pol: 
                             last_best = eps
-                            torch.save(policy_est.state_dict(), '../models/actor_critic/best_pol_est.pt')
+                            torch.save(policy_est.state_dict(), 'models/actor_critic/best_pol_est0.pt')
                             best_loss_pol = current_mean_pol
 
                         if last_best - eps > 20:
                             break
+
+
 
     def predict(self, env, start=None, save=False, model_path='../models/actor_critic/', pred_id=None):
 
@@ -296,12 +301,12 @@ class ActorCritic(Base):
         # load best models 
 
         # Define value function approximator
-        valf_est = ValueEstimator(env.n_states, n_hidden=self.n_hidden_valf)
+        valf_est = ValueEstimator(env.n_states, n_hidden=self.n_hidden_valf, lr=self.lr_valf)
         valf_est.load_state_dict(torch.load(model_path + 'best_valf_est.pt'))
 
         # Define policy estimator
         policy_nn = PolicyNN(n_inputs=env.n_states, n_hidden=self.n_hidden_pol, n_outputs=env.n_assets)
-        policy_est = PolicyEstimator(policy_nn) 
+        policy_est = PolicyEstimator(policy_nn, lr=self.lr_pol) 
         policy_est.load_state_dict(torch.load(model_path + 'best_pol_est.pt'))
 
         while not terminal:
@@ -364,22 +369,24 @@ class ActorCritic(Base):
         return tracking_errors.mean(), portfolio_returns, portfolio_value
 
 
+
 if __name__ == '__main__':
 
+
     GAMMA = 0.99
-    N_EPISODES = 200
-    LR_POL = 0.0001
-    LR_VALF = 0.0001
+    N_EPISODES = 1000
+    LR_POL = 0.000001
+    LR_VALF = 0.000001
     EXP = 0
-    N_HIDDEN_POL = 400
-    N_HIDDEN_VALF = 400
+    N_HIDDEN_POL = 300
+    N_HIDDEN_VALF = 300
     
-    Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state'))
+    Transition = namedtuple('Transition',('state','action','reward','next_state'))
 
     # train
     env = Env(context='train', experiment=EXP)
     actor_critic_agent = ActorCritic(N_EPISODES, GAMMA, LR_VALF, LR_POL, N_HIDDEN_VALF, N_HIDDEN_POL)
-    #actor_critic_agent.learn(env)
+    actor_critic_agent.learn(env)
 
 
     # test
@@ -387,11 +394,8 @@ if __name__ == '__main__':
     actor_critic_agent = ActorCritic(N_EPISODES, GAMMA, LR_VALF, LR_POL, N_HIDDEN_VALF, N_HIDDEN_POL)
 
     TE = []
-    for i in range(10):
-        te, _, _ = actor_critic_agent.predict(env, pred_id=i)
-        TE.append(te)
+    for i in range(100):
+        TE.append(actor_critic_agent.predict(env, pred_id=i))
 
-    TE = np.array(TE).mean()*100000
+    TE = np.array(TE).mean()
     print('AVERAGE TE: '+str(TE))
-
-
