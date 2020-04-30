@@ -1,7 +1,8 @@
 {
 
-    "PF": {
-
+    "PF": { "n_particles":1000000,
+            "vol": 0.1,
+            "likeli_scale": 0.005
     },
 
     "A2C": {

@@ -2,30 +2,22 @@ import argparse
 import os
 import sys
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-from torch.distributions import Normal
+
 
 from environments.index_environment import Env
 from utils.utils import get_device, read_config_file
 from utils.utils_graphs import plot_returns, plot_values
-from agents.base import Base
 from agents.particle_filter import ParticleFilter
 from agents.actor_critic import ActorCritic
 from agents.ppo import PPO
-from agents.reinforce import reinforce_agent
+#from agents.reinforce import reinforce_agent
 
 parser = argparse.ArgumentParser(description='Parser to run best models')
 parser.add_argument('--save_dir', type=str, default='./figs/',
                     help='location where figures will be saved')
 parser.add_argument('--config_path', type=str, default='./config.json',
-                    help='location where figures will be saved')
+                    help='location where config file is')
 parser.add_argument('--experience', type=int, default=0,
                     help='experience of environment')
 parser.add_argument('--n_tests', type=int, default=2,
@@ -67,7 +59,9 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
 # Particle filter
-# TODO: fill this part
+params_pf = config["PF"]
+particle_filter_agent = ParticleFilter(n_particles=params_pf["n_particles"], n_assets=env.n_assets,
+                                       vol=params_pf["vol"], likeli_scale=params_pf["likeli_scale"])
 
 # A2C
 params_ac = config["A2C"]
@@ -89,10 +83,10 @@ reinforce_hyperparams = {
 	}
 	
   # train
-agent_reinforce = reinforce_agent(reinforce_hyperparams , env)
+#agent_reinforce = reinforce_agent(reinforce_hyperparams , env)
 
 # main loop for figures
-n_figs = 9
+n_figs = 1
 
 for fig in range(n_figs):
 
@@ -100,19 +94,20 @@ for fig in range(n_figs):
     start = int(np.random.uniform(0, env.history_len-env.T))
 
     # compute predictions
+    _, _, returns_pf, values_pf = particle_filter_agent.learn(env, start)
     _, returns_ac, values_ac = \
         agent_ac.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ac["best_model_path"])
     _, returns_ppo, values_ppo = \
         agent_ppo.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ppo["best_model_path"])
-    _, returns_reinforce, values_reinforce = \
-        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_reinforce["best_model_path"])
+#    _, returns_reinforce, values_reinforce = \
+#        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_reinforce["best_model_path"])
 
     # plot graphs
     returns_path = experiment_path + '_returns_all_' + str(fig) + '.png'
     values_path = experiment_path + '_values_all_' + str(fig) + '.png'
 
-    plot_returns(env, returns_ac, returns_ppo, returns_path)
-    plot_values(env, values_ac, values_ppo, values_path)
+    plot_returns(env, returns_pf, returns_ac, returns_ppo, returns_path)
+    plot_values(env, values_pf, values_ac, values_ppo, values_path)
 
 
 # main loop to compute average TE's
@@ -127,20 +122,22 @@ for i in range(args.n_tests):
     start = int(np.random.uniform(0, env.history_len-env.T))
 
     # compute predictions
+    #te_pf, _, _, _ = particle_filter_agent.learn(env, start)
     te_ac, _, _ = \
         agent_ac.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ac["best_model_path"])
     te_ppo, _, _ = \
         agent_ppo.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ppo["best_model_path"])
-    te_reinforce, _, _ = \
-        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_reinforce["best_model_path"])
+    #te_re, _, _ = \
+    #    agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_reinforce["best_model_path"])
 
     # append values
+    #TE_PF.append(te_pf)
     TE_AC.append(te_ac)
     TE_PPO.append(te_ppo)
-    TE_RE.append(te_reinforce)
+    #TE_RE.append(te_re)
 
-#print('mean Tracking Error for PF: ', round(np.array(TE_PF).mean()*100000, 4))
+print('mean Tracking Error for PF: ', round(np.array(TE_PF).mean()*100000, 4))
 print('mean Tracking Error for A2C: ', round(np.array(TE_AC).mean()*100000, 4))
 print('mean Tracking Error for PPO: ', round(np.array(TE_PPO).mean()*100000, 4))
-print('mean Tracking Error for PPO: ', round(np.array(TE_RE).mean()*100000, 4))
+#print('mean Tracking Error for PPO: ', round(np.array(TE_RE).mean()*100000, 4))
 
