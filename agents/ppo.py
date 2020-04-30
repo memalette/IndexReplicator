@@ -1,3 +1,5 @@
+# Note: some of the functions were inspired from https://github.com/seungeunrho/minimalRL
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -146,6 +148,7 @@ class PPO(nn.Module, Base):
     def learn(self, env):
 
         best_loss = 10000000
+        torch.save(self.state_dict(), '../models/ppo/best_ppo.pt')
 
         losses = []
         replicator_returns = []
@@ -155,7 +158,7 @@ class PPO(nn.Module, Base):
 
         for episode in range(self.hyperparams['n_episode']):
 
-            print('episode: ', episode)
+            #print('episode: ', episode)
 
             state = env.reset()
 
@@ -297,24 +300,25 @@ if __name__ == '__main__':
         'eps_clip': hp.choice('eps_clip', [0.2]),
         'K_epoch': hp.choice('K_epoch', [3]),
         'T_horizon': hp.choice('T_horizon', [20]),
-        'n_episode': hp.choice('n_episode', [500]),
+        'n_episode': hp.choice('n_episode', [200]),
         'device': hp.choice('device', [device])
     }
 
     def f(params):
 
         # training
-        env = Env(context='train')
+        env = Env(context='train', experiment=3)
         model = PPO(env.n_states, env.n_assets, params).float().to(params['device'])
         model.learn(env)
 
         # testing
-        env = Env(context='test')
+        env = Env(context='test', experiment=3)
         model = PPO(env.n_states, env.n_assets, params).float().to(params['device'])
         te, _, _ = model.predict(env)
         return {'loss': te, 'status': STATUS_OK}
 
-    #Best = hyperparam_search(f, space=space, max_trials=50)
+    best = hyperparam_search(f, space=space, max_trials=25)
+    print('best combination:', best)
 
     # Model hyperparams
     hyperparams = {'lr_rate': 0.0005,
@@ -348,22 +352,22 @@ if __name__ == '__main__':
 
     ## compute predictions for multiple seeds
 
-    env = Env(context='test', experiment=0)
-    model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
+    #env = Env(context='test', experiment=0)
+    #model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
 
     TE = []
-    for experiment in range(10):
+    #for experiment in range(10):
 
-        print('SEED: ', experiment)
+    #    print('SEED: ', experiment)
 
-        torch.manual_seed(experiment)
-        np.random.seed(experiment)
+    #    torch.manual_seed(experiment)
+    #    np.random.seed(experiment)
 
-        te, _, _ = model.predict(env, pred_id='_ppo' + str(experiment))
-        TE.append(te)
+    #    te, _, _ = model.predict(env, pred_id='_ppo' + str(experiment))
+    #    TE.append(te)
 
-    print('Done predicting!')
-    print('Mean TE: ', round(np.array(TE).mean()*100000, 4))
+    #print('Done predicting!')
+    #print('Mean TE: ', round(np.array(TE).mean()*100000, 4))
 
 
 

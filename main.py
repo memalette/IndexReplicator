@@ -25,9 +25,9 @@ parser = argparse.ArgumentParser(description='Parser to run best models')
 parser.add_argument('--save_dir', type=str, default='./figs/',
                     help='location where figures will be saved')
 parser.add_argument('--config_path', type=str, default='./config.json',
-                    help='location where figures will be saved')
+                    help='location where config file is')
 parser.add_argument('--experience', type=int, default=0,
-                    help='experience of environment')
+                    help='experience of index_environment')
 parser.add_argument('--n_tests', type=int, default=2,
                     help='number of tests to compute TEs')
 parser.add_argument('--seed', type=int, default=1111,
