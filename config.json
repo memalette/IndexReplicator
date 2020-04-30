@@ -1,18 +1,14 @@
 {
 
-    "PF": {
-
-    },
 
     "A2C": {
         "best_model_path": "./models/actor_critic/",
-        "gamma": 0.99,
-        "n_episodes": 1000,
-        "lr_pol": 0.0001,
-        "lr_valf": 0.0001,
-        "exp": 3,
-        "n_hidden_pol": 400,
-        "n_hidden_valf": 400
+        "hyperparams" :{"gamma": 0.99,
+                        "n_episodes": 1000,
+                        "lr_pol": 0.0001,
+                        "lr_valf": 0.0001,
+                        "n_hidden_pol": 400,
+                        "n_hidden_valf": 400} 
     },
 
     "PPO":{
