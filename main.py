@@ -79,7 +79,7 @@ params_ppo = config["PPO"]
 agent_ppo = PPO(env.n_states, env.n_assets, params_ppo["hyperparams"]).float().to(device)
 
 # REINFORCE
-params_reinforce = config["reinforce"]
+params_reinforce = config['RE']
 reinforce_hyperparams = {
     'n_episodes' : 1000 ,
     'gamma' : 1,
@@ -143,5 +143,4 @@ for i in range(args.n_tests):
 print('mean Tracking Error for A2C: ', round(np.array(TE_AC).mean()*100000, 4))
 print('mean Tracking Error for PPO: ', round(np.array(TE_PPO).mean()*100000, 4))
 print('mean Tracking Error for PPO: ', round(np.array(TE_RE).mean()*100000, 4))
-
 
