@@ -19,7 +19,7 @@ from agents.base import Base
 from agents.particle_filter import ParticleFilter
 from agents.actor_critic import ActorCritic
 from agents.ppo import PPO
-
+from agents.reinforce import reinforce_agent
 
 parser = argparse.ArgumentParser(description='Parser to run best models')
 parser.add_argument('--save_dir', type=str, default='./figs/',
@@ -79,7 +79,17 @@ params_ppo = config["PPO"]
 agent_ppo = PPO(env.n_states, env.n_assets, params_ppo["hyperparams"]).float().to(device)
 
 # REINFORCE
-# TODO: fill this part
+params_reinforce = config["reinforce"]
+reinforce_hyperparams = {
+    'n_episodes' : 1000 ,
+    'gamma' : 1,
+    'learning_rate' : 1e-4 ,
+    'hidden_layer_neurons' : 100,
+    'Exp_num' : 1
+	}
+	
+  # train
+agent_reinforce = reinforce_agent(reinforce_hyperparams , env)
 
 # main loop for figures
 n_figs = 9
@@ -94,6 +104,8 @@ for fig in range(n_figs):
         agent_ac.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ac["best_model_path"])
     _, returns_ppo, values_ppo = \
         agent_ppo.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ppo["best_model_path"])
+    _, returns_reinforce, values_reinforce = \
+        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_reinforce["best_model_path"])
 
     # plot graphs
     returns_path = experiment_path + '_returns_all_' + str(fig) + '.png'
@@ -119,14 +131,17 @@ for i in range(args.n_tests):
         agent_ac.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ac["best_model_path"])
     te_ppo, _, _ = \
         agent_ppo.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ppo["best_model_path"])
+    te_reinforce, _, _ = \
+        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_reinforce["best_model_path"])
 
     # append values
     TE_AC.append(te_ac)
     TE_PPO.append(te_ppo)
+    TE_RE.append(te_reinforce)
 
 #print('mean Tracking Error for PF: ', round(np.array(TE_PF).mean()*100000, 4))
 print('mean Tracking Error for A2C: ', round(np.array(TE_AC).mean()*100000, 4))
 print('mean Tracking Error for PPO: ', round(np.array(TE_PPO).mean()*100000, 4))
-#print('mean Tracking Error for PPO: ', round(np.array(TE_RE).mean()*100000, 4))
+print('mean Tracking Error for PPO: ', round(np.array(TE_RE).mean()*100000, 4))
 
 
