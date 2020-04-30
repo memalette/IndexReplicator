@@ -31,12 +31,10 @@
 
     "RE": {
         "best_model_path": "./models/reinforce/",
-        "hyperparams": {"lr_rate": 0.0005,
+        "hyperparams": {"lr_rate": 1e-3,
                    "gamma": 0.99,
-                   "lmbda": 0.95,
-                   "T_horizon": 20,
-                   "n_episode": 500,
-                   "hidden_size": 256,
+                   "n_episode": 1000,
+                   "hidden_size": 200,
                    "device": null
                    }
     }
