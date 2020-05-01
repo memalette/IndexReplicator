@@ -83,11 +83,12 @@ agent_reinforce = reinforce_agent(params_re['hyperparams'], env)
 
 # main loop for figures
 n_figs = 3
+starts = [412, 2600, 2673]
 
-for fig in range(n_figs):
+for start in starts:
 
     # use same start
-    start = int(np.random.uniform(0, env.history_len-env.T))
+    #start = int(np.random.uniform(0, env.history_len-env.T))
 
     print(start)
 
@@ -97,22 +98,24 @@ for fig in range(n_figs):
     #save('values_pf_' + str(args.experience) + '_' + str(start) + '.npy', values_pf)
 
     _, returns_ac, values_ac = \
-        agent_ac.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ac["best_model_path"])
+        agent_ac.predict(env, start, pred_id='_ac' + str(start), model_path=params_ac["best_model_path"])
     _, returns_ppo, values_ppo = \
-        agent_ppo.predict(env, start, pred_id='_ppo' + str(fig), model_path=params_ppo["best_model_path"])
+        agent_ppo.predict(env, start, pred_id='_ppo' + str(start), model_path=params_ppo["best_model_path"])
     _, returns_re, values_re = \
-        agent_reinforce.predict(env, start, pred_id='_re' + str(fig), model_path=params_re["best_model_path"])
+        agent_reinforce.predict(env, start, pred_id='_re' + str(start), model_path=params_re["best_model_path"])
 
 
     # plot graphs
-    returns_path = experiment_path + '_returns_all_' + str(fig) + '.png'
-    values_path = experiment_path + '_values_all_' + str(fig) + '.png'
+    returns_path = experiment_path + '_returns_all_' + str(start) + '.png'
+    values_path = experiment_path + '_values_all_' + str(start) + '.png'
 
-    #plot_returns(env, load('returns_pf_' + str(args.experience) + '_' + str(start) + '.npy'), returns_ac, returns_ppo, returns_re, returns_path)
-    #plot_values(env, load('values_pf_' + str(args.experience) + '_' + str(start) + '.npy'), values_ac, values_ppo, values_re, values_path)
+    plot_returns(env, load('returns_pf_' + str(args.experience) + '_' + str(start) + '.npy'), returns_ac, returns_ppo, returns_re, returns_path)
+    plot_values(env, load('values_pf_' + str(args.experience) + '_' + str(start) + '.npy'), values_ac, values_ppo, values_re, values_path)
 
     #plot_returns(env, returns_pf, returns_ac, returns_ppo, returns_re, returns_path)
     #plot_values(env, values_pf, values_ac, values_ppo, values_re, values_path)
+
+print('Done plotting figures!')
 
 
 # main loop to compute average TE's

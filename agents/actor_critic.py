@@ -22,7 +22,7 @@ import glob
 
 class ValueEstimator(nn.Module):
 
-    def __init__(self,n_inputs, n_hidden ,lr ):
+    def __init__(self,n_inputs, n_hidden ,lr):
         
         super(ValueEstimator,self).__init__()
         
@@ -292,13 +292,13 @@ class ActorCritic:
         # load best models 
 
         # Define value function approximator
-        valf_est = ValueEstimator(env.n_states, n_hidden=self.n_hidden_valf)
+        valf_est = ValueEstimator(env.n_states, self.n_hidden_valf, self.lr_valf)
         #valf_est.load_state_dict(torch.load(model_path + 'best_valf_est.pt'))
         valf_est.load_state_dict(torch.load(model_path + 'best_valf_est' + str(env.experiment)+'.pt'))
 
         # Define policy estimator
         policy_nn = PolicyNN(n_inputs=env.n_states, n_hidden=self.n_hidden_pol, n_outputs=env.n_assets)
-        policy_est = PolicyEstimator(policy_nn)
+        policy_est = PolicyEstimator(policy_nn, self.lr_pol)
         #policy_est.load_state_dict(torch.load(model_path + 'best_pol_est.pt'))
         policy_est.load_state_dict(torch.load(model_path + 'best_pol_est' + str(env.experiment)+'.pt'))
 

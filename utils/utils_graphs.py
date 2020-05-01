@@ -15,7 +15,6 @@ def plot_returns(env, a, b, c, d, save_path):
 
     returns_logs.plot(marker='.')
     plt.title('Portfolio Returns')
-    #plt.xticks(range(len(returns_logs.index.values)), returns_logs.index.values, rotation=30)
     plt.legend()
     plt.savefig(save_path)
     plt.close()
@@ -35,8 +34,6 @@ def plot_values(env, a, b, c, d, save_path):
 
     returns_logs.plot(marker='.')
     plt.title('Portfolio Values')
-    #plt.xticks(range(len(returns_logs.index)), returns_logs.index, rotation=30)
-    plt.xlabel('')
     plt.legend()
     plt.savefig(save_path)
     plt.close()
