@@ -4,7 +4,6 @@ import sys
 import numpy as np
 import torch
 
-
 from environments.index_environment import Env
 from utils.utils import get_device, read_config_file
 from utils.utils_graphs import plot_returns, plot_values
@@ -22,7 +21,7 @@ parser.add_argument('--config_path', type=str, default='./config.json',
                     help='location where config file is')
 parser.add_argument('--experience', type=int, default=0,
                     help='experience of environment')
-parser.add_argument('--n_tests', type=int, default=2,
+parser.add_argument('--n_tests', type=int, default=100,
                     help='number of tests to compute TEs')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
@@ -33,13 +32,13 @@ argsdict['code_file'] = sys.argv[0]
 
 # Use the flags passed to the script to make the
 # name for the experimental directory
-print("\n########## Setting Up Experiment ##########")
+print("\n########## Setting Up Experiment{} ##########".format(args.experience))
 flags = [flag.lstrip('--').replace('/', '').replace('\\', '') for flag in sys.argv[1:]]
 
 experiment_path = os.path.join(args.save_dir+'_'.join([str(argsdict['experience']),
-                                         str(argsdict['seed']), '/']
+                                         str(argsdict['seed']), '/']))
 
-                                         + flags))
+print('Figures will be saved in: {}'.format(experiment_path))
 if not os.path.exists(experiment_path):
     os.mkdir(experiment_path)
 
@@ -56,7 +55,7 @@ config = read_config_file(args.config_path)
 env = Env(data_path='./data/returns.csv', context='test', experiment=args.experience)
 device = get_device()
 
-# set seed for entire run
+# set seed for entire run and instanciate models
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
@@ -68,7 +67,7 @@ particle_filter_agent = ParticleFilter(n_particles=params_pf["n_particles"], n_a
 # A2C
 params_ac = config["A2C"]
 agent_ac = ActorCritic(params_ac["n_episodes"], params_ac["gamma"], params_ac["lr_valf"],
-                       params_ac["lr_valf"], params_ac["n_hidden_valf"], params_ac["n_hidden_pol"])
+                       params_ac["lr_pol"], params_ac["n_hidden_valf"], params_ac["n_hidden_pol"])
 
 # PPO
 params_ppo = config["PPO"]
@@ -76,34 +75,34 @@ agent_ppo = PPO(env.n_states, env.n_assets, params_ppo["hyperparams"]).float().t
 
 # REINFORCE
 params_re = config['RE']
-agent_reinforce = reinforce_agent(params_re['hyperparams'] , env)
+agent_reinforce = reinforce_agent(params_re['hyperparams'], env)
 
 
 # main loop for figures
-n_figs = 1
+n_figs = 3
 
-for fig in range(n_figs):
+for start in range(n_figs):
 
-    # use same start
+    # use same start/period
     start = int(np.random.uniform(0, env.history_len-env.T))
 
     # compute predictions
     _, _, returns_pf, values_pf = particle_filter_agent.learn(env, start)
     _, returns_ac, values_ac = \
-        agent_ac.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ac["best_model_path"])
+        agent_ac.predict(env, start, pred_id='_ac' + str(start), model_path=params_ac["best_model_path"])
     _, returns_ppo, values_ppo = \
-        agent_ppo.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ppo["best_model_path"])
-    _, returns_reinforce, values_reinforce = \
-        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_re["best_model_path"])
-
+        agent_ppo.predict(env, start, pred_id='_ppo' + str(start), model_path=params_ppo["best_model_path"])
+    _, returns_re, values_re = \
+        agent_reinforce.predict(env, start, pred_id='_re' + str(start), model_path=params_re["best_model_path"])
 
     # plot graphs
-    returns_path = experiment_path + '_returns_all_' + str(fig) + '.png'
-    values_path = experiment_path + '_values_all_' + str(fig) + '.png'
+    returns_path = experiment_path + '_returns_all_' + str(start) + '.png'
+    values_path = experiment_path + '_values_all_' + str(start) + '.png'
 
-    plot_returns(env, returns_pf, returns_ac, returns_ppo, returns_path)
-    plot_values(env, values_pf, values_ac, values_ppo, values_path)
+    plot_returns(env, returns_pf, returns_ac, returns_ppo, returns_re, returns_path)
+    plot_values(env, values_pf, values_ac, values_ppo, values_re, values_path)
 
+print('Done plotting figures!')
 
 # main loop to compute average TE's
 
@@ -117,16 +116,16 @@ for i in range(args.n_tests):
     start = int(np.random.uniform(0, env.history_len-env.T))
 
     # compute predictions
-    #te_pf, _, _, _ = particle_filter_agent.learn(env, start)
+    te_pf, _, _, _ = particle_filter_agent.learn(env, start)
     te_ac, _, _ = \
-        agent_ac.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ac["best_model_path"])
+        agent_ac.predict(env, start, pred_id='_ac' + str(start), model_path=params_ac["best_model_path"])
     te_ppo, _, _ = \
-        agent_ppo.predict(env, start, pred_id='_ac' + str(fig), model_path=params_ppo["best_model_path"])
+        agent_ppo.predict(env, start, pred_id='_ac' + str(start), model_path=params_ppo["best_model_path"])
     te_re, _, _ = \
-        agent_reinforce.predict(env, start, pred_id='_ac' + str(fig), model_path=params_re["best_model_path"])
+        agent_reinforce.predict(env, start, pred_id='_ac' + str(start), model_path=params_re["best_model_path"])
 
     # append values
-    #TE_PF.append(te_pf)
+    TE_PF.append(te_pf)
     TE_AC.append(te_ac)
     TE_PPO.append(te_ppo)
     TE_RE.append(te_re)

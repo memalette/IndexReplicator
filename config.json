@@ -11,22 +11,22 @@
         "n_episodes": 1000,
         "lr_pol": 0.0001,
         "lr_valf": 0.0001,
-        "exp": 0,
+        "exp": 2,
         "n_hidden_pol": 300,
         "n_hidden_valf": 300
     },
 
     "PPO":{
         "best_model_path":"./models/ppo/",
-        "hyperparams": {"lr_rate": 0.0005,
-                   "gamma": 0.99,
-                   "lmbda": 0.95,
-                   "eps_clip": 0.2,
-                   "K_epoch": 3,
-                   "T_horizon": 20,
-                   "n_episode": 500,
-                   "hidden_size": 256,
-                   "device": null
+        "hyperparams": {"lr_rate": 0.005,
+                        "gamma": 0.90,
+                        "lmbda": 0.98,
+                        "eps_clip": 0.2,
+                        "K_epoch": 3,
+                        "T_horizon": 20,
+                        "n_episode": 500,
+                        "hidden_size": 128,
+                       "device": null
                    }
     },
 
@@ -34,8 +34,8 @@
         "best_model_path": "./models/reinforce/",
         "hyperparams": {"n_episodes" : 100,
                         "gamma" : 0.99,
-                        "learning_rate" : 1e-3 ,
-                        "hidden_layer_neurons" : 200
+                        "learning_rate" : 0.01,
+                        "hidden_layer_neurons" : 20
                    }
     }
 }

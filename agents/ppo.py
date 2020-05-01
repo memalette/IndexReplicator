@@ -17,6 +17,8 @@ from agents.base import Base
 
 
 class PPO(nn.Module, Base):
+    """PPO model to track S&P 500 index
+    """
     def __init__(self, num_states, num_assets, hyperparams, std=0):
         super(PPO, self).__init__()
         self.data = []
@@ -41,14 +43,6 @@ class PPO(nn.Module, Base):
 
         return x
 
-        #mu = F.relu(self.fc1(x))
-        #mu = self.fc_pi(mu)
-
-        #std = self.log_std.exp().expand_as(mu)
-        #dist = Normal(mu, std)
-
-        #return dist
-
     def v(self, x):
 
         x = F.relu(self.fc1(x))
@@ -57,18 +51,6 @@ class PPO(nn.Module, Base):
 
     def append_data(self, transition):
         self.data.append(transition)
-
-    def select_action(self, dist):
-        constraint_respected = False
-
-        while not constraint_respected:
-            a = dist.sample().squeeze(0)
-            action = (a / a.sum())
-
-            if (action.abs()).max() < 2:
-                constraint_respected = True
-
-        return action, a
 
     def select_action_dir(self, alpha):
 
@@ -121,10 +103,6 @@ class PPO(nn.Module, Base):
             advantage_lst.reverse()
             advantage = torch.tensor(advantage_lst, dtype=torch.float).to(self.device)
 
-            #new_dist = self.pi(s.float().to(self.device))
-            #_, a = self.select_action(new_dist)
-            #log_prob_new = new_dist.log_prob(a).sum()
-
             new_alpha = self.pi(s.float().to(self.device))
             a, new_dist = self.select_action_dir(new_alpha)
             entropy = new_dist.entropy().mean()
@@ -135,7 +113,6 @@ class PPO(nn.Module, Base):
             surr1 = (ratio * advantage)
             surr2 = (torch.clamp(ratio, 1 - self.hyperparams['eps_clip'], 1 + self.hyperparams['eps_clip']) * advantage).to(self.device)
 
-            # loss = -torch.min(surr1, surr2) + F.smooth_l1_loss(v_s.float() , td_target.detach().float())
             loss = -torch.min(surr1, surr2) + 0.5 * (v_s.float() - td_target.detach().float()).pow(2).mean() - 0.001 * entropy
             loss = loss.mean().to(self.device)
 
@@ -158,28 +135,18 @@ class PPO(nn.Module, Base):
 
         for episode in range(self.hyperparams['n_episode']):
 
-            #print('episode: ', episode)
-
             state = env.reset()
 
             done = False
             loss_ep = []
             while not done:
                 for t in range(self.hyperparams['T_horizon']):
-                    #dist = self.pi(torch.from_numpy(state).float().to(self.device))
                     alpha = self.pi(torch.from_numpy(state).float().to(self.device))
 
-                    #next_action, a = self.select_action(dist)
                     next_action, dist = self.select_action_dir(alpha)
                     delta = next_action - action
 
                     next_state, reward, done = env.step(next_action.detach().cpu().numpy(), delta.cpu().numpy())
-
-                    #self.append_data((torch.from_numpy(state).float(), a,
-                    #                   torch.from_numpy(reward),
-                    #                   torch.from_numpy(next_state),
-                    #                   dist.log_prob(a).sum(),
-                    #                   done))
 
                     self.append_data((torch.from_numpy(state).float(),
                                        next_action,
@@ -223,13 +190,11 @@ class PPO(nn.Module, Base):
         T = 0
 
         # load best model
-        self.load_state_dict(torch.load(model_path+'best_ppot.pt'))
+        self.load_state_dict(torch.load(model_path + 'best_ppo' + str(env.experiment)+'.pt'))
 
         while not done:
-            #dist = self.pi(torch.from_numpy(state).float().to(self.device))
             alpha = self.pi(torch.from_numpy(state).float().to(self.device))
 
-            #next_action, _ = self.select_action(dist)
             next_action, dist = self.select_action_dir(alpha)
             delta = next_action - action
 
@@ -300,7 +265,7 @@ if __name__ == '__main__':
         'eps_clip': hp.choice('eps_clip', [0.2]),
         'K_epoch': hp.choice('K_epoch', [3]),
         'T_horizon': hp.choice('T_horizon', [20]),
-        'n_episode': hp.choice('n_episode', [200]),
+        'n_episode': hp.choice('n_episode', [2]),
         'device': hp.choice('device', [device])
     }
 
@@ -328,25 +293,16 @@ if __name__ == '__main__':
                    'K_epoch': 3,
                    'T_horizon': 20,
                    'n_episode': 200,
-                   'hidden_size': 512,
+                   'hidden_size': 128,
                    'device': device
                    }
 
     ##### TRAINING ####
-    env = Env(context='train', experiment=0)
-    model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
-    best_loss, rep_returns, index_returns = model.learn(env)
+    #env = Env(context='train', experiment=0)
+    #model = PPO(env.n_states, env.n_assets, hyperparams).float().to(device)
+    #best_loss, rep_returns, index_returns = model.learn(env)
 
-    # Plot cumulative return
-    #f1 = plt.figure()
-    #ax1 = f1.add_subplot(111)
-    #ax1.plot(np.cumprod(np.array(rep_returns) + 1), label='Clone')
-    #ax1.plot(np.cumprod(np.array(index_returns) + 1), label='Index')
-    #ax1.title.set_text('Cumulative Return')
-    #ax1.legend()
-    #f1.savefig('cum_returns.pdf')
-
-    print('Done training!')
+    #print('Done training!')
 
     ##### PREDICT #####
 

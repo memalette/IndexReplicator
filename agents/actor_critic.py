@@ -1,40 +1,35 @@
-# Necassary import statments
-from environments.index_environment import Env
+from environments.index_environment import *
+from agents.base import Base
+from utils.utils import Exp
 import numpy as np
 import pandas as pd
 
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-import torch.nn.functional as F
 
-
-import matplotlib
 import matplotlib.pyplot as plt
-import seaborn as sns
 from collections import namedtuple
 from tqdm.auto import tqdm
-import glob
-
 
 
 class ValueEstimator(nn.Module):
 
-    def __init__(self,n_inputs, n_hidden ,lr ):
+    def __init__(self, n_inputs, n_hidden, lr):
         
-        super(ValueEstimator,self).__init__()
+        super(ValueEstimator, self).__init__()
         
         # Model definition
         self.model = nn.Sequential(
-            nn.Linear(n_inputs,n_hidden),
+            nn.Linear(n_inputs, n_hidden),
             nn.ReLU(),
-            nn.Linear(n_hidden,n_hidden),
+            nn.Linear(n_hidden, n_hidden),
             nn.ReLU(),
-            nn.Linear(n_hidden,1)
+            nn.Linear(n_hidden, 1)
         )
        
         # Model optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(),lr)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr)
 
         # Loss criterion
         self.criterion = torch.nn.MSELoss()
@@ -55,17 +50,6 @@ class ValueEstimator(nn.Module):
         self.optimizer.step()
 
         return float(loss.detach().numpy())
-        
-
-class Exp(nn.Module):
-
-    def __init__(self):
-        super(Exp, self).__init__()
-
-    def forward(self, x):
-        out = torch.exp(x)
-        out = torch.clamp(out, min=0.0001)
-        return out
 
 
 class PolicyNN(nn.Module):
@@ -95,7 +79,6 @@ class PolicyNN(nn.Module):
         return self.alpha(l1_output) 
 
 
-
 class PolicyEstimator(nn.Module):
     def __init__(self, policy_nn,lr ):
         super(PolicyEstimator,self).__init__()
@@ -104,7 +87,6 @@ class PolicyEstimator(nn.Module):
        
         # Model optimizer
         self.optimizer = torch.optim.Adam(self.policy_nn.parameters(),lr)
-
 
     def predict(self,state):
 
@@ -133,7 +115,6 @@ class PolicyEstimator(nn.Module):
     def sample_action(self, dirichlet_dist):
         return dirichlet_dist.sample()
 
-
     def select_action(self,state):
 
         alpha = self.predict(state)
@@ -144,15 +125,14 @@ class PolicyEstimator(nn.Module):
         action = self.sample_action(dirichlet_dist)
 
         log_prob = dirichlet_dist.log_prob(action)
-        # print(log_prob)
 
         return action, log_prob
 
 
-
-
-
-class ActorCritic:
+class ActorCritic(Base):
+    """
+    A2C architecture to track S&P 500 index
+    """
     def __init__(self,n_episodes, gamma, lr_valf, lr_pol, n_hidden_valf, n_hidden_pol):
 
         self.n_episodes = n_episodes
@@ -183,13 +163,13 @@ class ActorCritic:
             eps_buffer = []
             log_probs = []
             cum_reward = 0
-            T = 0 # episode length
+            # episode length
+            T = 0
 
             state = env.reset()
             action_logs = []
             portfolio_returns = []
             prev_action = 0
-
 
             # i = 0
             terminal = False
@@ -251,7 +231,7 @@ class ActorCritic:
                     returns = torch.tensor(Gt, dtype=torch.float).reshape(-1,1)
                     states  = torch.tensor(states, dtype=torch.float)  
 
-                    #Calculate the baseline
+                    # Calculate the baseline
                     baseline_values = valf_est.predict(states)
 
                     # Calculate advanatge using baseline  
@@ -281,8 +261,6 @@ class ActorCritic:
                         if last_best - eps > 20:
                             break
 
-
-
     def predict(self, env, start=None, save=False, model_path='../models/actor_critic/', pred_id=None):
 
         # set start state
@@ -301,13 +279,15 @@ class ActorCritic:
         # load best models 
 
         # Define value function approximator
-        valf_est = ValueEstimator(env.n_states, n_hidden=self.n_hidden_valf, lr=self.lr_valf)
-        valf_est.load_state_dict(torch.load(model_path + 'best_valf_est.pt'))
+        valf_est = ValueEstimator(env.n_states, self.n_hidden_valf, self.lr_valf)
+        #valf_est.load_state_dict(torch.load(model_path + 'best_valf_est.pt'))
+        valf_est.load_state_dict(torch.load(model_path + 'best_valf_est' + str(env.experiment)+'.pt'))
 
         # Define policy estimator
         policy_nn = PolicyNN(n_inputs=env.n_states, n_hidden=self.n_hidden_pol, n_outputs=env.n_assets)
-        policy_est = PolicyEstimator(policy_nn, lr=self.lr_pol) 
-        policy_est.load_state_dict(torch.load(model_path + 'best_pol_est.pt'))
+        policy_est = PolicyEstimator(policy_nn, self.lr_pol)
+        #policy_est.load_state_dict(torch.load(model_path + 'best_pol_est.pt'))
+        policy_est.load_state_dict(torch.load(model_path + 'best_pol_est' + str(env.experiment)+'.pt'))
 
         while not terminal:
         
@@ -369,7 +349,6 @@ class ActorCritic:
         return tracking_errors.mean(), portfolio_returns, portfolio_value
 
 
-
 if __name__ == '__main__':
 
 
@@ -380,13 +359,13 @@ if __name__ == '__main__':
     EXP = 0
     N_HIDDEN_POL = 300
     N_HIDDEN_VALF = 300
-    
+
     Transition = namedtuple('Transition',('state','action','reward','next_state'))
 
     # train
-    env = Env(context='train', experiment=EXP)
-    actor_critic_agent = ActorCritic(N_EPISODES, GAMMA, LR_VALF, LR_POL, N_HIDDEN_VALF, N_HIDDEN_POL)
-    actor_critic_agent.learn(env)
+    #env = Env(context='train', experiment=EXP)
+    #actor_critic_agent = ActorCritic(N_EPISODES, GAMMA, LR_VALF, LR_POL, N_HIDDEN_VALF, N_HIDDEN_POL)
+    #actor_critic_agent.learn(env)
 
 
     # test
@@ -394,8 +373,8 @@ if __name__ == '__main__':
     actor_critic_agent = ActorCritic(N_EPISODES, GAMMA, LR_VALF, LR_POL, N_HIDDEN_VALF, N_HIDDEN_POL)
 
     TE = []
-    for i in range(100):
+    for i in range(10):
         TE.append(actor_critic_agent.predict(env, pred_id=i))
 
     TE = np.array(TE).mean()
-    print('AVERAGE TE: '+str(TE))
+    print('AVERAGE TE: '+ str(TE))

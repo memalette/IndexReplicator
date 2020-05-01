@@ -8,7 +8,7 @@ particle filters similar to what is proposed by [Roncalli and Weisang 2008](http
 * [Particle filter](https://github.com/memalette/IndexReplicator/blob/master/agents/particle_filter.py)
 * [A2C](https://github.com/memalette/IndexReplicator/blob/master/agents/actor_critic.py)
 * [PPO](https://github.com/memalette/IndexReplicator/blob/master/agents/ppo.py)
-* [REINFORCE]() TODO: add link
+* [REINFORCE](https://github.com/memalette/IndexReplicator/blob/master/agents/reinforce.py)
 
 ## Dependencies
 1. Python 3
