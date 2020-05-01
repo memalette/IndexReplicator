@@ -3,15 +3,18 @@ import pandas as pd
 
 
 class Env:
+	"""Environment using S&P 500 index returns
+	"""
+
 	def __init__(self, data_path='../data/returns.csv', context='train', experiment=0):
 
 		self.returns = pd.read_csv(data_path, index_col=0)
 		half = int(self.returns.shape[0]/2)
 
 		if context == 'train':
-			self.returns.iloc[:half,:]
+			self.returns.iloc[:half, :]
 		elif context == 'test':
-			self.returns.iloc[half:,:]
+			self.returns.iloc[half:, :]
 
 		self.index_col = self.returns.columns[0]
 		self.assets_col = self.returns.columns[1:]
@@ -32,7 +35,6 @@ class Env:
 			self.start = start
 
 		self.t = 0
-		
 		self.prev_action = 0
 		self.IV = 1
 		self.PV = 1
@@ -45,16 +47,15 @@ class Env:
 
 		if self.experiment == 0:
 			self.state = np.array([0]*(self.n_assets+1))
-		elif (self.experiment == 1):
+		elif self.experiment == 1:
 			self.state = np.array([0]*(self.n_assets+2))
-		elif (self.experiment == 2):
+		elif self.experiment == 2:
 			self.state = np.array([0]*(3*self.n_assets+2))
-		elif (self.experiment == 3):
+		elif self.experiment == 3:
 			self.state = np.array([0]*(3*self.n_assets+2))
 
 		self.n_states = self.state.shape[0]
 
-		
 		return self.state
 
 	def step_index(self):
@@ -67,7 +68,6 @@ class Env:
 		self.AV = self.AV * (1+assets)
 		return assets
 
-
 	def get_reward(self, state):
 	
 		base_penalty = -np.abs(self.state[0])
@@ -77,7 +77,7 @@ class Env:
 		elif (self.experiment == 1) or (self.experiment == 2):
 			cumul_penalty = -np.abs(self.state[1])*5
 			reward = base_penalty + cumul_penalty
-		elif (self.experiment == 3): 
+		elif self.experiment == 3:
 			cumul_penalty = -np.abs(self.state[1])*5
 			turnover_penalty = -np.sum(np.abs(state[2:17]))*0.7
 			reward = base_penalty + cumul_penalty + turnover_penalty
@@ -85,7 +85,6 @@ class Env:
 			print('Specify experiment 0-4')
 
 		return reward.flatten()
-
 
 	def step(self, action=None, delta=None):
 		# step index - get index return
@@ -111,18 +110,17 @@ class Env:
 			# store in new state
 			if self.experiment == 0:
 				self.state = np.concatenate((np.array([difference_indicator1]), delta))
-			elif (self.experiment == 1):
+			elif self.experiment == 1:
 				self.state = np.concatenate((np.array([difference_indicator1, difference_indicator2]), delta))
-			elif (self.experiment == 2):
+			elif self.experiment == 2:
 				self.state = np.concatenate((np.array([difference_indicator1, difference_indicator2]), delta, 
 										cumulative_returns, past_returns))
-			elif (self.experiment == 3):
+			elif self.experiment == 3:
 				self.state = np.concatenate((np.array([difference_indicator1, difference_indicator2]), delta, 
 										cumulative_returns, past_returns))
 
 			# get reward
 			reward = self.get_reward(self.state)
-			# print(reward)
 
 			# store values for next iteration
 			self.prev_action = action

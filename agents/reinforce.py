@@ -9,15 +9,9 @@ import pandas as pd
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
-from torch.autograd import Variable
-
-
 import matplotlib.pyplot as plt
-from collections import namedtuple
-from tqdm.auto import tqdm
 
 
 class PolicyNN(nn.Module):
@@ -27,7 +21,7 @@ class PolicyNN(nn.Module):
         # Model definition
         # first layer
         self.l1 = nn.Sequential(
-            nn.Linear(n_inputs,n_hidden),
+            nn.Linear(n_inputs, n_hidden),
             #nn.Dropout(0.6),
             nn.ReLU(),
 
@@ -44,7 +38,9 @@ class PolicyNN(nn.Module):
 
 		
 class reinforce_agent(Base):
-	def __init__(self, hyperparams , environment):
+	"""REINFORCE agent to track S&P 500 index
+	"""
+	def __init__(self, hyperparams, environment):
   
 		self.env = environment
 		self.state_dim = self.env.n_states
@@ -61,7 +57,7 @@ class reinforce_agent(Base):
 		action = dirichlet_dist.sample()
 
 		log_prob = dirichlet_dist.log_prob(action)
-    #print('in policy estimator, action log_prob', action, log_prob)
+
 		return action, log_prob
   
   
@@ -81,8 +77,8 @@ class reinforce_agent(Base):
 		gamma = self.hyperparams['gamma'] 
 		Average_reward = 0
 		for index_episode in range(num_episodes):
-      # at each episode the rewards and log_probs of actions are stored in a list to be used at the end
-      # of episode for training
+		  # at each episode the rewards and log_probs of actions are stored in a list to be used at the end
+		  # of episode for training
 			k = 0
 			rewards = []
 			log_probs = []
@@ -96,14 +92,11 @@ class reinforce_agent(Base):
 				state , reward , done  = self.env.step(action.numpy(), delta.numpy())
 				rewards.append(reward)
 				running_reward += (gamma ** k ) * reward
-        #print(reward)
+
 				k += 1
 				if done:
 					break
-      #print(k)
-      #print(rewards)
-      #print(log_probs)
-      #print('running reward' , running_reward)
+
 			results[index_episode] = running_reward
 			Average_reward += running_reward
 			if index_episode % 10 == 0:
@@ -112,24 +105,22 @@ class reinforce_agent(Base):
 				Average_reward = 0
 			ret = 0
 			returns = [i for i in range(k)]
-      # returns for each timestep are computed 
+
 			for j in range(k-1,-1,-1):
 				ret = ret * gamma + rewards[j][0]
 				returns[j] = ret * (gamma ** j)
-      #print(returns)
+
 			loss = []
-      #print(returns)
-      #print(log_probs)
+
 			for j in range(k):
 				loss.append( -returns[j] * log_probs[j].unsqueeze(0))
 			optimizer.zero_grad()
-      #print(loss)
+
 			loss = torch.cat(loss).sum()
 			loss.backward()
 			optimizer.step()
     
-    #print(results)
-    #return results
+
 		torch.save(self.Policy.state_dict(), '../models/reinforce/reinforce.pt')
 		print('done')
 
@@ -208,14 +199,14 @@ if __name__ == '__main__':
     'n_episodes' : 100 ,
     'gamma' : 0.99,
     'learning_rate' : 1e-3 ,
-    'hidden_layer_neurons' : 200,
+    'hidden_layer_neurons' : 20,
     'Exp_num' : 0
 	}
 	
     # train
 	env = Env(context='train', experiment=hyperparams['Exp_num'])
 	agent = reinforce_agent(hyperparams , env)
-	agent.learn()
+	#agent.learn()
 
     # test
 	env = Env(context='test', experiment=hyperparams['Exp_num'])

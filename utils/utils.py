@@ -13,8 +13,8 @@ def get_device():
 
 def init_weights(m):
     if isinstance(m, nn.Linear):
-      nn.init.normal_(m.weight, mean=0., std=0.1)
-      nn.init.constant_(m.bias, 0.1)
+        nn.init.normal_(m.weight, mean=0., std=0.1)
+        nn.init.constant_(m.bias, 0.1)
 
 
 def read_config_file(config_path):

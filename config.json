@@ -18,14 +18,14 @@
 
     "PPO":{
         "best_model_path":"./models/ppo/",
-        "hyperparams": {"lr_rate": 0.0005,
-                        "gamma": 0.92,
-                        "lmbda": 0.91,
+        "hyperparams": {"lr_rate": 0.005,
+                        "gamma": 0.90,
+                        "lmbda": 0.98,
                         "eps_clip": 0.2,
                         "K_epoch": 3,
                         "T_horizon": 20,
                         "n_episode": 500,
-                        "hidden_size": 512,
+                        "hidden_size": 128,
                        "device": null
                    }
     },
@@ -35,7 +35,7 @@
         "hyperparams": {"n_episodes" : 100,
                         "gamma" : 0.99,
                         "learning_rate" : 0.01,
-                        "hidden_layer_neurons" : 200
+                        "hidden_layer_neurons" : 20
                    }
     }
 }
